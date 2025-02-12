@@ -1,0 +1,467 @@
+{% load static %}
+<!DOCTYPE html='eng'>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' href='styles.css'>
+
+    <title>Superior Dental Solutions Limited</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="path/to/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  </head>
+  <body>
+   
+    {% if request.session.appointment_created %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                title: 'Success!',
+                text: 'Appointment has been created successfully!',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            }).then((result) => {
+                // Clear the session variable after displaying the message
+                fetch("{% url 'clear_appointment_created_flag' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                });
+            });
+        });
+
+    </script>
+    {% endif %}
+
+<nav class="bg-white dark:bg-gray-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600">
+    <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+    <a href="https://flowbite.com/" class="flex items-center space-x-3 rtl:space-x-reverse">
+      <img src="{% static 'img/logo.png' %}" alt="logo" class="w-16 md:w-12 lg:w-25">
+      
+      <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Superior Dental Solutions</span>
+    </a>
+    <div class="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
+        <button  type="button" class="text-white flex flex-row gap-2 bg-green-700 hover:bg-green-400 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center dark:bg-green-700 dark:hover:bg-green-400 hover:text-white dark:focus:ring-blue-800"> 
+            <span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="size-6 text-white">
+            <path fill="#35b739" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+            </svg>
+        </span>
+
+        WhatsApp
+    </button>
+        <button data-collapse-toggle="navbar-sticky" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-sticky" aria-expanded="false">
+          <span class="sr-only">Open main menu</span>
+          <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
+              <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h15M1 7h15M1 13h15"/>
+          </svg>
+      </button>
+    </div>
+    <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1" id="navbar-sticky">
+      <ul class="flex flex-col p-4 md:p-0 mt-4 font-medium border border-gray-100 rounded-lg bg-gray-50 md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
+        <li>
+          <a href="#" class="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 md:dark:text-blue-500" aria-current="page">Home</a>
+        </li>
+        <li>
+          <a href="#about-us" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">About</a>
+        </li>
+        <li>
+          <a href="#" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">Services</a>
+        </li>
+        <li>
+          <a href="#" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700">Contact</a>
+        </li>
+      </ul>
+    </div>
+    </div>
+  </nav>
+
+  <!--Hero Section -->
+  <section class="bg-center bg-no-repeat bg-cover bg-[url('{% static 'img/smile.jpg' %}')] bg-gray-50 bg-blend-multiply h-screen w-full">
+
+        <div id="hero-section" class="bg-center bg-no-repeat relative isolate px-6 pt-14 lg:px-8">
+          <div class="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
+            <div class="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)"></div>
+          </div>
+          <div class="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
+            
+            <div class="text-center">
+              <h1 class="text-balance text-5xl font-semibold tracking-tight text-white sm:text-7xl">Get A Perfect  Smile. </h1>
+
+            </div>
+          </div>
+          <div class="absolute inset-x-0 top-[calc(100%-13rem)] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[calc(100%-30rem)]" aria-hidden="true">
+            <div class="relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%+36rem)] sm:w-[72.1875rem]" style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)"></div>
+          </div>
+        </div>
+      </div>
+
+</section>
+
+<!--End of Hero Section -->
+
+
+<!--Appointment btn -->
+<div class="mt-10 flex items-center justify-center py-3 gap-x-6">
+  <a href="#" class="rounded-md bg-sky-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Book an Appointment</a>
+  
+</div>
+
+
+
+<!-- Services section -->
+<div class="flex item-center justify-center py-3 m-2 mt-5">
+  <h2 class="text-2xl text-sky-900 font-semibold p-3 px-4 item-center justify-center">Our Services</h2>
+</div>
+
+<div class="flex items-center justify-center gap-3 p-3 my-4 m-3 gap-x-6 sm:py-32">
+
+  <div class="ring ring-1 ring-sky-400 hover:ring-sky-900 hover:bg-gray-800 hover:text-white rounded-lg p-4 px-3 mx-3 item-center justify-center">
+    <div class="flex items-center justify-center">
+      <img src="{% static 'img/dental-floss.svg' %}" alt="teeth" class="w-28 h-32">
+  
+     </div>
+    <h1 class="text-md font-semibold text-center">Orthodontics</h1>
+    <p class="text-sm text-center">braces, clear aligners, cleanings</p>
+        <!--Appointment btn -->
+    <div class="mt-10 flex items-center justify-center py-3 gap-x-6">
+      <a href="#" class="rounded-md bg-sky-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Book an Appointment</a>
+      
+    </div>
+  
+
+  </div>
+
+ <div class="ring ring-1 ring-sky-400 hover:ring-sky-900 hover:bg-gray-800 hover:text-white rounded-lg p-4 px-3 mx-3 item-center justify-center">
+  <div class="flex items-center justify-center">
+    <img src="{% static 'img/molar-svgrepo.svg' %}" alt="teeth" class="w-28 h-32">
+
+   </div>
+    <h1 class="text-md font-semibold text-center">Cosmetic dentistry</h1>
+    <p class="text-sm text-center">whitening, veneers, implants.</p>
+    <!--Appointment btn -->
+    <div class="mt-10 flex items-center justify-center py-3 gap-x-6">
+      <a href="#" class="rounded-md bg-sky-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Book an Appointment</a>
+      
+    </div>
+      
+
+  </div>
+
+
+<div class="ring ring-1 ring-sky-400 hover:ring-sky-900 hover:bg-gray-800 hover:text-white rounded-lg p-4 px-3 mx-3 item-center justify-center">
+   <div class="flex items-center justify-center">
+    <img src="{% static 'img/cottons-pliers.svg' %}" alt="teeth" class="w-28 h-32">
+
+   </div>
+    <h1 class="text-md font-semibold text-center">Oral surgery</h1>
+    <p class="text-sm text-center">extractions, wisdome teeth removal.</p>
+    <!--Appointment btn -->
+  <div class="mt-10 flex items-center justify-center py-3 gap-x-6">
+    <a href="#" class="rounded-md bg-sky-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Book an Appointment</a>
+    
+  </div>
+    
+
+  </div>
+
+
+
+<div class="ring ring-1 ring-sky-400 hover:ring-sky-900 hover:bg-gray-800 hover:text-white rounded-lg p-4 px-3 mx-3 item-center justify-center">
+  <div class="flex items-center justify-center">
+   <img src="{% static 'img/band-aid-svgrepo.svg' %}" alt="teeth" class="w-28 h-32">
+
+  </div>
+   <h1 class="text-md font-semibold text-center">Restorative dentistry</h1>
+   <p class="text-sm text-center">whitening, veneers,implants.</p>
+   <!--Appointment btn -->
+ <div class="mt-10 flex items-center justify-center py-3 gap-x-6">
+   <a href="#" class="rounded-md bg-sky-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Book an Appointment</a>
+   
+ </div>
+   
+
+ </div>
+
+ 
+
+</div>
+
+<!--About us-->
+<section id="about-us" class="bg-white dark:bg-gray-900 py-24 sm:py-32">
+  <div class="gap-16 items-center py-8 px-4 mx-auto max-w-screen-xl lg:grid lg:grid-cols-2 lg:py-16 lg:px-6">
+      <div class="font-light text-gray-500 sm:text-lg dark:text-gray-400">
+          <h2 class="mb-4 text-4xl tracking-tight font-extrabold text-gray-900 dark:text-white">Superior Dental Solutions Limited</h2>
+          <p class="mb-4"> Welcome to Superior Dental Solutions, where your smile is our top priority! <br><br>
+            At Superior Dental Solutions, we are committed to providing exceptional dental care in a comfortable and welcoming environment. Our dedicated team of dental professionals combines years of expertise with the latest advancements in technology to deliver personalized treatment plans tailored to your unique needs. <br><br>
+            From routine cleanings to advanced restorative and cosmetic procedures, we are passionate about helping you achieve optimal oral health and a confident smile. Whether you’re visiting for preventive care, teeth whitening, dental implants, or orthodontics, we approach every treatment with precision, compassion, and care.</p>
+            <h3 class="text-xl font-semibold mb-2">Our Mission</h3>
+          <p> To transform lives by enhancing smiles and promoting lifelong dental health through superior care and innovative solutions.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-8">
+          <img class="w-full rounded-lg"  src="{% static 'img/team-2.png' %}" alt="office content 1">
+          <img class="mt-4 w-full lg:mt-10 rounded-lg" src="{% static 'img/team-3.png' %}" alt="office content 2">
+      </div>
+  </div>
+</section>
+
+
+<!-- Testmonials -->
+
+  <div class="bg-white py-24 sm:py-32">
+    <div class="mx-auto max-w-7xl px-6 lg:px-8">
+      <div class="mx-auto max-w-2xl item-start">
+        
+        <h1 class="text-2xl font-semibold text-center text-sky-900 p-3 py-4">What Our Clients Say</h1>
+       
+      </div>
+      <div class="mx-auto mt-16 flow-root max-w-2xl gap-2 sm:mt-20 lg:mx-0 lg:max-w-none">
+        <div class="-mt-8 sm:-mx-4 sm:columns-2 gap-4 sm:text-[0] lg:columns-3">
+          <div class="pt-8 sm:inline-block sm:w-full sm:px-4 ring ring-1 ring-sky-400 rounded-lg">
+            <figure class="rounded-2xl bg-gray-50 p-8 text-sm/6">
+              <blockquote class="text-gray-900">
+                <p>“Laborum quis quam. Dolorum et ut quod quia. Voluptas numquam delectus nihil. Aut enim doloremque et ipsam.”</p>
+              </blockquote>
+              <figcaption class="mt-6 flex items-center gap-x-4">
+                <img class="size-10 rounded-full bg-gray-50" src="{% static 'img/kidist.jpeg' %}" alt="">
+                <div>
+                  <div class="font-semibold text-gray-900">Kidist</div>
+                  <div class="text-gray-600">@Kidist</div>
+                </div>
+              </figcaption>
+            </figure>
+          </div>
+  
+          <!-- More testimonials... -->
+
+          <div class="pt-8 sm:inline-block sm:w-full sm:px-4 ring ring-1 ring-sky-400 rounded-lg">
+            <figure class="rounded-2xl bg-gray-50 p-8 text-sm/6">
+              <blockquote class="text-gray-900">
+                <p>“Laborum quis quam. Dolorum et ut quod quia. Voluptas numquam delectus nihil. Aut enim doloremque et ipsam.”</p>
+              </blockquote>
+              <figcaption class="mt-6 flex items-center gap-x-4">
+                <img class="size-10 rounded-full bg-gray-50" src="{% static 'img/nez-long.jpeg' %}" alt="">
+                <div>
+                  <div class="font-semibold text-gray-900">Nez Long</div>
+                  <div class="text-gray-600">@nez_long</div>
+                </div>
+              </figcaption>
+            </figure>
+          </div>
+
+
+
+
+          <div class="pt-8 sm:inline-block sm:w-full sm:px-4 ring ring-1 ring-sky-400 rounded-lg">
+            <figure class="rounded-2xl bg-gray-50 p-8 text-sm/6">
+              <blockquote class="text-gray-900">
+                <p>“Laborum quis quam. Dolorum et ut quod quia. Voluptas numquam delectus nihil. Aut enim doloremque et ipsam.”</p>
+              </blockquote>
+              <figcaption class="mt-6 flex items-center gap-x-4">
+                <img class="size-10 rounded-full bg-gray-50" src="{% static 'img/dizmo.jpg' %}" alt="">
+                <div>
+                  <div class="font-semibold text-gray-900">Dizmo</div>
+                  <div class="text-gray-600">@dizmo</div>
+                </div>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!--Footer-->
+
+  <footer class="bg-gray-900">
+    <div class="mx-auto max-w-7xl px-6 pb-8 pt-16 sm:pt-24 lg:px-8 lg:pt-32">
+      <div class="xl:grid xl:grid-cols-3 xl:gap-8">
+        <div class="space-y-8">
+          <img class="h-9" src="{% static 'img/logo.png' %}" alt="Superior Dental Solutions">
+          <p class="text-balance text-sm/6 text-gray-300">To transform lives by enhancing smiles and promoting lifelong dental health through superior care and innovative solutions.</p>
+          <div class="flex gap-x-6">
+            <a href="https://www.facebook.com/profile.php?id=100083977332644" class="text-gray-400 hover:text-gray-300">
+              <span class="sr-only">Facebook</span>
+              <svg class="size-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill-rule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clip-rule="evenodd" />
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-gray-300">
+              <span class="sr-only">Instagram</span>
+              <svg class="size-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clip-rule="evenodd" />
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-gray-300">
+              <span class="sr-only">X</span>
+              <svg class="size-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M13.6823 10.6218L20.2391 3H18.6854L12.9921 9.61788L8.44486 3H3.2002L10.0765 13.0074L3.2002 21H4.75404L10.7663 14.0113L15.5685 21H20.8131L13.6819 10.6218H13.6823ZM11.5541 13.0956L10.8574 12.0991L5.31391 4.16971H7.70053L12.1742 10.5689L12.8709 11.5655L18.6861 19.8835H16.2995L11.5541 13.096V13.0956Z" />
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-gray-300">
+              <span class="sr-only">GitHub</span>
+              <svg class="size-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+              </svg>
+            </a>
+            <a href="#" class="text-gray-400 hover:text-gray-300">
+              <span class="sr-only">YouTube</span>
+              <svg class="size-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill-rule="evenodd" d="M19.812 5.418c.861.23 1.538.907 1.768 1.768C21.998 8.746 22 12 22 12s0 3.255-.418 4.814a2.504 2.504 0 0 1-1.768 1.768c-1.56.419-7.814.419-7.814.419s-6.255 0-7.814-.419a2.505 2.505 0 0 1-1.768-1.768C2 15.255 2 12 2 12s0-3.255.417-4.814a2.507 2.507 0 0 1 1.768-1.768C5.744 5 11.998 5 11.998 5s6.255 0 7.814.418ZM15.194 12 10 15V9l5.194 3Z" clip-rule="evenodd" />
+              </svg>
+            </a>
+          </div>
+        </div>
+        <div class="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
+          <div class="md:grid md:grid-cols-2 md:gap-8">
+            <div>
+              <h3 class="text-sm/6 font-semibold text-white">Services</h3>
+              <ul role="list" class="mt-6 space-y-4">
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Teeth whitening</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Dental Implants</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Orthodontics</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Cosmetic Procedures</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Consultancy</a>
+                </li>
+              </ul>
+            </div>
+            <div class="mt-10 md:mt-0">
+              <h3 class="text-sm/6 font-semibold text-white">Working Hours</h3>
+              <ul role="list" class="mt-6 space-y-4">
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Mon to Fri <br/> 08:00hrs - 17:00hrs</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Hoildays <br/> 08:00hrs to 12:00hrs</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Saturday and Sunday <br/> Closed</a>
+                </li>
+            </div>
+          </div>
+          <div class="md:grid md:grid-cols-2 md:gap-8">
+            <div>
+              <h3 class="text-sm/6 font-semibold text-white">Company</h3>
+              <ul role="list" class="mt-6 space-y-4">
+                <li>
+                  <a href="#about-us" class="text-sm/6 text-gray-400 hover:text-white">About</a>
+                </li>
+              <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Jobs</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Contact</a>
+              </ul>
+            </div>
+            <div class="mt-10 md:mt-0">
+              <h3 class="text-sm/6 font-semibold text-white">Legal</h3>
+              <ul role="list" class="mt-6 space-y-4">
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Terms of service</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">Privacy policy</a>
+                </li>
+                <li>
+                  <a href="#" class="text-sm/6 text-gray-400 hover:text-white">License</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-16 border-t border-white/10 pt-8 sm:mt-20 lg:mt-24">
+        <p class="text-sm/6 text-gray-400">&copy; 2024 Superior Dental Solutions, Ltd. All rights reserved. <span> Powered By Francis Mwamba Chiputa. (Evamachi)</p>
+      </div>
+    </div>
+  </footer>
+
+<!-- Popup Appointment Form -->
+<div id="appointment-form" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg">
+    <div class="flex justify-between items-center">
+      <h2 class="text-2xl font-semibold text-gray-800">Book an Appointment</h2>
+      <button class="text-red-500 hover:text-red-700 focus:outline-none" id="close-button">&times;</button>
+    </div>
+    <form class="mt-4" method="post" action="{% url 'create_appointment' %}">
+      {% csrf_token %}
+      <div class="mb-4">
+        <label class="block text-gray-700">Full Name</label>
+        <input type="text" name="full_name" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Name">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700">Email</label>
+        <input type="email" name="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Email">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700">Phone</label>
+        <input type="tel" name="phone" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Phone Number">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700">Appointment Date</label>
+        <input type="date" name="appoint_date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700">Appointment Time</label>
+        <input type="time" name="appoint_time" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700">Service</label>
+        <select name="service" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+            {% for service in services %}
+                <option value="{{ service.id }}">
+                    {{ service.name|default:"Unnamed Service" }}
+                   
+                </option>
+            {% empty %}
+                <option value="">No services available</option>
+            {% endfor %}
+        </select>
+    </div>
+      <div class="mb-4">
+        <label class="block text-gray-700">Notes</label>
+        <textarea name="notes" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Notes"></textarea>
+      </div>
+      <div class="flex items-center justify-end">
+        <button type="button" class="bg-red-800 text-white py-2 px-4 rounded-md mr-2" id="cancel-button">Cancel</button>
+        <button type="submit" class="bg-sky-800 text-white py-2 px-4 rounded-md">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- JavaScript to handle popup -->
+<script>
+  document.getElementById('close-button').addEventListener('click', function() {
+    document.getElementById('appointment-form').classList.add('hidden');
+  });
+
+  document.getElementById('cancel-button').addEventListener('click', function() {
+    document.getElementById('appointment-form').classList.add('hidden');
+  });
+
+  // Show the appointment form when the "Book an Appointment" button is clicked
+  document.querySelectorAll('.bg-sky-900').forEach(button => {
+    button.addEventListener('click', function(event) {
+      event.preventDefault();
+      document.getElementById('appointment-form').classList.remove('hidden');
+    });
+  });
+</script>
+
+</div>
+  </body>
+</html>
