@@ -139,42 +139,71 @@ def Dashboard(request):
 def PatientsPage(request):
     patients = Patient.objects.all()
     return render(request, 'patients.html', {'patients': patients})
-
 @login_required
 def CreatePatient(request):
     if request.method == 'POST':
-       first_name = request.POST.get('first-name')
-       last_name = request.POST.get('last-name')
-       date_of_birth = request.POST.get('dob')
-       gender = request.POST.get('gender')
-       nrc = request.POST.get('nrc')
-       contact_number = request.POST.get('phone')
-       email = request.POST.get('email')
-       address = request.POST.get('address')
-       medical_history = request.POST.get('medical_history', '')
+        # Retrieve form data
+        first_name = request.POST.get('first-name', '').strip()
+        last_name = request.POST.get('last-name', '').strip()
+        date_of_birth = request.POST.get('dob', '').strip()
+        gender = request.POST.get('gender', '').strip()
+        nrc = request.POST.get('nrc', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        email = request.POST.get('email', '').strip()
+        address = request.POST.get('address', '').strip()
+        medical_history = request.POST.get('medical_history', '').strip()
 
-    Patient.objects.create(
-        first_name=first_name,
-        last_name=last_name,
-        date_of_birth=date_of_birth,
-        gender=gender,
-        nrc=nrc,
-        contact_number=contact_number,
-        email=email,
-        address=address,
-        medical_history=medical_history,
-        is_patient=True
-    )
+        # Validate required fields
+        if not all([first_name, last_name, date_of_birth, gender, nrc, phone]):
+            messages.error(request, 'All required fields must be filled.')
+            return render(request, 'create_patient.html')
 
-    messages.success(request, 'Patient created successfully!')
+        # Create the patient
+        try:
+            Patient.objects.create(
+                first_name=first_name,
+                last_name=last_name,
+                date_of_birth=date_of_birth,
+                gender=gender,
+                nrc=nrc,
+                phone=phone,
+                email=email,
+                address=address,
+                medical_history=medical_history,
+                is_patient=True
+            )
+            messages.success(request, 'Patient created successfully!')
+            return redirect('patients')  # Redirect to the patients list page
+        except Exception as e:
+            messages.error(request, f'An error occurred: {str(e)}')
+            return render(request, 'create_patient.html')
 
-    return render(request, 'patients.html')
+    # Render the form for GET requests
+    return render(request, 'create_patient.html')
+
+
 
 def AppointmentsPage(request):
+    # Retrieve pending appointments
     appointments = Appointment.objects.filter(status='Pending')
+    
+    # Retrieve dentists with user_type=3
     dentists = Dentist.objects.filter(user__user_type=3)
-    print(dentists)  # Debugging: Check if dentists are fetched
-    return render(request, 'appointments.html', {'appointments': appointments, 'dentists': dentists})
+    
+    # Retrieve services with valid name and price
+    services = Service.objects.filter(name__isnull=False, price__isnull=False)
+    
+    # Pass all data to the template
+    return render(
+        request,
+        'appointments.html',
+        {
+            'appointments': appointments,  # Pending appointments
+            'dentists': dentists,         # List of dentists
+            'services': services          # Services with valid name and price
+        }
+    )
+
 
 def index(request):
     # Retrieve only services with valid name and price
@@ -281,20 +310,33 @@ def create_appointment(request):
 
     # Handle GET requests
     return render(request, 'index.html')
+
 @login_required
 @csrf_protect
 def walk_in_appointment(request):
     if request.method == 'POST':
-        full_name = request.POST.get('full_name')
-        email = request.POST.get('email')
-        phone = request.POST.get('phone')
-        appoint_date = request.POST.get('appoint_date')
-        appoint_time = request.POST.get('appoint_time')
-        service_id = request.POST.get('service')
-        notes = request.POST.get('notes')
+        # Retrieve form data
+        full_name = request.POST.get('full_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        appoint_date = request.POST.get('appoint_date', '').strip()
+        appoint_time = request.POST.get('appoint_time', '').strip()
+        service_id = request.POST.get('service', '').strip()
+        notes = request.POST.get('notes', '').strip()
 
-        first_name, last_name = full_name.split(' ', 1)
+        # Validate required fields
+        if not all([full_name, email, phone, appoint_date, appoint_time, service_id]):
+            messages.error(request, 'All required fields must be filled.')
+            return render(request, 'appointments.html')
 
+        # Split full name into first and last names
+        try:
+            first_name, last_name = full_name.split(' ', 1)
+        except ValueError:
+            messages.error(request, 'Invalid full name format. Please provide both first and last names.')
+            return render(request, 'appointments.html')
+
+        # Retrieve or create patient
         patient, created = Patient.objects.get_or_create(
             first_name=first_name,
             last_name=last_name,
@@ -302,14 +344,29 @@ def walk_in_appointment(request):
             defaults={'phone': phone}
         )
 
-        service = Service.objects.get(id=service_id)
+        # Retrieve service
+        try:
+            service = Service.objects.get(id=service_id)
+        except Service.DoesNotExist:
+            messages.error(request, 'Invalid service selected.')
+            return render(request, 'appointments.html')
 
+        # Retrieve dentist (default to the first available dentist)
         dentist = Dentist.objects.first()
+        if not dentist:
+            messages.error(request, 'No dentists available.')
+            return render(request, 'appointments.html')
 
-        date_time_str = f"{appoint_date} {appoint_time}"
-        naive_date_time = timezone.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
-        aware_date_time = timezone.make_aware(naive_date_time, timezone.get_default_timezone())
+        # Parse date and time
+        try:
+            date_time_str = f"{appoint_date} {appoint_time}"
+            naive_date_time = timezone.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
+            aware_date_time = timezone.make_aware(naive_date_time, timezone.get_default_timezone())
+        except ValueError:
+            messages.error(request, 'Invalid date or time format. Please use the format YYYY-MM-DD HH:MM.')
+            return render(request, 'appointments.html')
 
+        # Create appointment
         appointment = Appointment.objects.create(
             patient=patient,
             dentist=dentist,
@@ -318,6 +375,7 @@ def walk_in_appointment(request):
             notes=notes
         )
 
+        # Send notification via WebSocket
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             "appointment_notifications",
@@ -327,11 +385,13 @@ def walk_in_appointment(request):
             }
         )
 
+        # Set session variable and redirect
         request.session['appointment_created'] = True
-
         return redirect('appointments')
 
+    # Render the form for GET requests
     return render(request, 'appointments.html')
+
 
 def patient_details(request, id):
     patient = get_object_or_404(Patient, id=id)
