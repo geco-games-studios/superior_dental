@@ -19,8 +19,13 @@ from django.contrib.auth.forms import UserCreationForm
 from django.http import JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from user_accounts.forms import CustomUserCreationForm
+from django.contrib.auth import logout
 
 
+
+
+def app_login(request):
+    return render(request, 'login.html')
 
 def is_admin(user):
     return user.user_type == 1
@@ -103,30 +108,39 @@ def login_user(request):
             
             # Redirect based on user type
             if user.user_type == 1:
-                return redirect('admin_dashboard')
+                return redirect('dashboard')
             elif user.user_type == 2:
-                return redirect('staff_dashboard')
+                return redirect('dashboard')
             elif user.user_type == 3:
-                return redirect('dentist_dashboard')
+                return redirect('dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
             return redirect('login')
     
     # If GET request or failed login, show login page
-    return render(request, 'dashboard.html')  # Make sure this matches your template name
+    return render(request, 'login.html')  # Make sure this matches your template name
+
+
+
+
+def logout_view(request):
+    logout(request)  # Logs the user out
+    return redirect('login')
 
 
 def DentistsPage(request):
     dentists = Dentist.objects.all()
     return render(request, 'dentists.html', {'dentists': dentists})
 
+@login_required
 def Dashboard(request):
     return render(request, 'dashboard.html')
-
+@login_required
 def PatientsPage(request):
     patients = Patient.objects.all()
     return render(request, 'patients.html', {'patients': patients})
 
+@login_required
 def CreatePatient(request):
     if request.method == 'POST':
        first_name = request.POST.get('first-name')
@@ -267,7 +281,7 @@ def create_appointment(request):
 
     # Handle GET requests
     return render(request, 'index.html')
-
+@login_required
 @csrf_protect
 def walk_in_appointment(request):
     if request.method == 'POST':
@@ -334,7 +348,7 @@ def patient_details(request, id):
     
     return render(request, 'patient_details.html', context)
 
-
+@login_required
 def assign_dentist(request):
     if request.method == 'POST':
         appointment_id = request.POST.get('appointmentId')
@@ -364,12 +378,12 @@ def assign_dentist(request):
     else:
         return JsonResponse({'success': False, 'message': 'Invalid request method.'})
     
-
+@login_required
 def scheduled_appointment_view(request):
     scheduled_appointments = Appointment.objects.filter(status='Scheduled')
     return render(request, 'schuled_appointment.html', {'scheduled_appointments': scheduled_appointments})
 
-
+@login_required
 def treatment_diagnosis(request):
     if request.method == 'POST':
         appointment_id = request.POST.get('appointmentId')

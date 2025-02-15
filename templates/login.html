@@ -48,6 +48,7 @@
     <!-- Add form tag with POST method and CSRF token -->
     <form method="POST" action="{% url 'login' %}">
       {% csrf_token %}
+      
       <div class="rounded-lg shadow-lg bg-white overflow-hidden animate-fadeIn" style="animation-duration: 1s; animation-fill-mode: both;">
         <!-- ... rest of your existing card structure ... -->
         
