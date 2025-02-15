@@ -84,13 +84,24 @@ def create_user(request):
         form = CustomUserCreationForm()
     return render(request, 'create_user.html', {'form': form})
 
+
 def login_user(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+        remember_me = request.POST.get('remember')  # Get remember me value
+        
         user = authenticate(request, username=username, password=password)
+        
         if user is not None:
             login(request, user)
+            
+            # Set session expiry
+            if not remember_me:
+                # Session will expire when browser closes
+                request.session.set_expiry(0)
+            
+            # Redirect based on user type
             if user.user_type == 1:
                 return redirect('admin_dashboard')
             elif user.user_type == 2:
@@ -99,8 +110,10 @@ def login_user(request):
                 return redirect('dentist_dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
-    return render(request, 'login.html')
-
+            return redirect('login')
+    
+    # If GET request or failed login, show login page
+    return render(request, 'dashboard.html')  # Make sure this matches your template name
 
 
 def DentistsPage(request):

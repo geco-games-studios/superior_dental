@@ -4,7 +4,7 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
     path('dashboard', views.Dashboard, name='dashboard'),
-    path('login', views.login_user, name='login'),
+    path('login/', views.login_user, name='login'),
     path('patients', views.PatientsPage, name='patients'),
     path('create-patient', views.CreatePatient, name='create-patient'),
     path('appointments', views.AppointmentsPage, name='appointments'),
@@ -13,7 +13,6 @@ urlpatterns = [
     path('register/staff/', views.create_user, name='create_user'),
     path('dentists', views.DentistsPage, name='dentists'),
     path('create_admin/', views.create_user, name='create_user'),
-    
     path('create_appointment/', views.create_appointment, name='create_appointment'),
     path('walkin_appointment/', views.walk_in_appointment, name='walkin_appointment'),
     path('clear_appointment_created_flag/', views.clear_appointment_created_flag, name='clear_appointment_created_flag'),
