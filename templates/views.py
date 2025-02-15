@@ -325,9 +325,9 @@ def walk_in_appointment(request):
         notes = request.POST.get('notes', '').strip()
 
         # Validate required fields
-        if not all([full_name, email, phone, appoint_date, appoint_time, service_id]):
-            messages.error(request, 'All required fields must be filled.')
-            return render(request, 'appointments.html')
+        # if not all([full_name, email, phone, appoint_date, appoint_time, service_id]):
+        #     messages.error(request, 'All required fields must be filled.')
+        #     return render(request, 'appointments.html')
 
         # Split full name into first and last names
         try:

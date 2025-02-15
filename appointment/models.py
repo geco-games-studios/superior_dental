@@ -22,7 +22,7 @@ class Appointment(models.Model):
 class Service(models.Model):
     name = models.CharField(max_length=100)  # Required field
     description = models.TextField(blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Required field
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True)  # Required field
     duration = models.DurationField(blank=True, null=True)
 
     def __str__(self):
