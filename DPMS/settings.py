@@ -15,6 +15,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*", "4.236.160.125:8000", "https://superiordentalzm.com/"]
 
+CSRF_TRUSTED_ORIGINS = [
+	"https://superiordentalzm.com"
+]
+
 # Application definition
 INSTALLED_APPS = [
     # 'daphne',
