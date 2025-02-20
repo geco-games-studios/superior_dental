@@ -139,6 +139,7 @@ def Dashboard(request):
 def PatientsPage(request):
     patients = Patient.objects.all()
     return render(request, 'patients.html', {'patients': patients})
+
 @login_required
 def CreatePatient(request):
     if request.method == 'POST':
@@ -311,7 +312,7 @@ def create_appointment(request):
     # Handle GET requests
     return render(request, 'index.html')
 
-@login_required
+
 @csrf_protect
 def walk_in_appointment(request):
     if request.method == 'POST':

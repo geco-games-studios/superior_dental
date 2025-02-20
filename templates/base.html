@@ -257,17 +257,42 @@
           </svg>
         </form>
         <div class="flex items-center gap-x-4 lg:gap-x-6">
-          <button type="button" class="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
-            <span class="sr-only">View notifications</span>
-            <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-            </svg>
-          </button>
-          <!-- Notifications container -->
-           <ul id="notifications" class="hidden absolute bg-white shadow-lg rounded-lg mt-2 w-60">
-            <!-- Notifications will be dynamically appended here -->
-           </ul>
+          <!-- Notification Icon -->
+<button 
+id="notificationButton" 
+type="button" 
+class="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 relative"
+>
+<span class="sr-only">View notifications</span>
+<svg 
+    class="size-6" 
+    fill="none" 
+    viewBox="0 0 24 24" 
+    stroke-width="1.5" 
+    stroke="currentColor" 
+    aria-hidden="true" 
+    data-slot="icon"
+>
+    <path 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
+    />
+</svg>
+    <!-- Notification Counter -->
+    <span 
+        id="notificationCount" 
+        class="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+    >0</span>
+    </button>
 
+    <!-- Notifications Container -->
+    <ul 
+    id="notifications" 
+    class="hidden absolute bg-white shadow-lg rounded-lg mt-2 w-60"
+    >
+    <!-- Notifications will be dynamically appended here -->
+    </ul>
           <!-- Separator -->
           <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>
 
@@ -355,7 +380,68 @@ function toggleDropdown(event) {
           notifications.classList.remove('hidden');
       }
   };
+
+
+  // Get DOM elements
+const notificationButton = document.getElementById('notificationButton');
+const notificationsContainer = document.getElementById('notifications');
+const notificationCountElement = document.getElementById('notificationCount');
+
+// Track the number of unread notifications
+let notificationCount = 0;
+
+// Function to update the notification count
+function updateNotificationCount(count) {
+    notificationCount = count;
+    if (notificationCount > 0) {
+        notificationCountElement.textContent = notificationCount;
+        notificationCountElement.style.display = 'flex'; // Show the counter
+    } else {
+        notificationCountElement.style.display = 'none'; // Hide the counter if no notifications
+    }
+}
+
+// Function to add a new notification
+function addNotification(message) {
+    const li = document.createElement('li');
+    li.className = 'px-4 py-2 border-b last:border-0';
+    li.textContent = message;
+
+    // Mark as read when clicked
+    li.addEventListener('click', () => {
+        li.classList.add('text-gray-500'); // Change color to indicate it's read
+        notificationCount -= 1;
+        updateNotificationCount(notificationCount);
+    });
+
+    notificationsContainer.appendChild(li);
+
+    // Update the notification count
+    notificationCount += 1;
+    updateNotificationCount(notificationCount);
+}
+
+// Toggle the visibility of the notifications container
+notificationButton.addEventListener('click', () => {
+    if (notificationsContainer.classList.contains('hidden')) {
+        notificationsContainer.classList.remove('hidden'); // Show the list
+    } else {
+        notificationsContainer.classList.add('hidden'); // Hide the list
+    }
+});
+
+// Example: Simulate receiving notifications
+// You can replace this with your actual logic for receiving notifications
+{% comment %} setTimeout(() => {
+    addNotification("New appointment: John Doe, Service: Consultation, Date: 2023-10-15 10:00");
+}, 1000);
+
+setTimeout(() => {
+    addNotification("New appointment: Jane Smith, Service: Check-up, Date: 2023-10-16 14:30");
+}, 2000); {% endcomment %}
 </script>
+
+
 
 </body>
 </html>

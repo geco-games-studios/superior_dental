@@ -16,24 +16,32 @@
    
     {% if request.session.appointment_created %}
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            Swal.fire({
-                title: 'Success!',
-                text: 'Appointment has been created successfully!',
-                icon: 'success',
-                confirmButtonText: 'OK'
-            }).then((result) => {
-                // Clear the session variable after displaying the message
-                fetch("{% url 'clear_appointment_created_flag' %}", {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    }
-                });
-            });
-        });
-
-    </script>
+      document.addEventListener('DOMContentLoaded', function() {
+          Swal.fire({
+              title: 'Success!',
+              text: 'Appointment has been created successfully!',
+              icon: 'success',
+              confirmButtonText: 'OK'
+          }).then((result) => {
+              const csrftoken = getCSRFToken(); // Retrieve CSRF token
+  
+              fetch("{% url 'clear_appointment_created_flag' %}", {
+                  method: 'POST',
+                  headers: {
+                      'X-CSRFToken': csrftoken,
+                      'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({})  // Empty body to ensure valid request
+              });
+          });
+      });
+  
+      // Function to get CSRF token from the page
+      function getCSRFToken() {
+          return document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+      }
+  </script>
+  
     {% endif %}
 
 <nav class="bg-white dark:bg-gray-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600">
