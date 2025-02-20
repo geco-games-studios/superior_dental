@@ -17,29 +17,45 @@
     {% if request.session.appointment_created %}
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-          Swal.fire({
-              title: 'Success!',
-              text: 'Appointment has been created successfully!',
-              icon: 'success',
-              confirmButtonText: 'OK'
-          }).then((result) => {
-              const csrftoken = getCSRFToken(); // Retrieve CSRF token
-  
-              fetch("{% url 'clear_appointment_created_flag' %}", {
-                  method: 'POST',
-                  headers: {
-                      'X-CSRFToken': csrftoken,
-                      'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({})  // Empty body to ensure valid request
-              });
-          });
-      });
-  
-      // Function to get CSRF token from the page
-      function getCSRFToken() {
-          return document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
-      }
+        Swal.fire({
+            title: 'Success!',
+            text: 'Appointment has been created successfully!',
+            icon: 'success',
+            confirmButtonText: 'OK'
+        }).then((result) => {
+            const csrftoken = getCSRFToken(); // Retrieve CSRF token
+    
+            if (!csrftoken) {
+                console.error("CSRF token not found. Unable to proceed.");
+                return;
+            }
+    
+            console.log("CSRF Token:", csrftoken);
+    
+            fetch("{% url 'clear_appointment_created_flag' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})  // Empty body to ensure valid request
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                console.log("Clear appointment flag request succeeded.");
+            })
+            .catch(error => {
+                console.error("Error clearing appointment flag:", error);
+            });
+        });
+    });
+    
+    // Function to get CSRF token from the page
+    function getCSRFToken() {
+        return document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || Cookies.get('csrftoken');
+    }
   </script>
   
     {% endif %}
