@@ -134,7 +134,15 @@ def DentistsPage(request):
 
 @login_required
 def Dashboard(request):
-    return render(request, 'dashboard.html')
+    logined_user = request.user.username
+    total_appointments = Appointment.objects.all().count()
+    total_patients = Patient.objects.all().count()
+    scheduled_appointments = Appointment.objects.filter(status='Scheduled')
+    pending_appointments = Appointment.objects.filter(status='Pending')
+    completed_appointments = Appointment.objects.filter(status='Completed')
+    cancelled_appointments = Appointment.objects.filter(status='Cancelled')
+    return render(request, 'dashboard.html', {'scheduled_appointments': scheduled_appointments, 'pending_appointments': pending_appointments, 'completed_appointments': completed_appointments, 'cancelled_appointments': cancelled_appointments, 'logined_user': logined_user, 'total_appointments': total_appointments, 'total_patients': total_patients, 'total_appointments': total_appointments})
+    
 @login_required
 def PatientsPage(request):
     patients = Patient.objects.all()
@@ -316,81 +324,83 @@ def create_appointment(request):
 @csrf_protect
 def walk_in_appointment(request):
     if request.method == 'POST':
-        # Retrieve form data
-        full_name = request.POST.get('full_name', '').strip()
-        email = request.POST.get('email', '').strip()
-        phone = request.POST.get('phone', '').strip()
-        appoint_date = request.POST.get('appoint_date', '').strip()
-        appoint_time = request.POST.get('appoint_time', '').strip()
-        service_id = request.POST.get('service', '').strip()
-        notes = request.POST.get('notes', '').strip()
-
-        # Validate required fields
-        # if not all([full_name, email, phone, appoint_date, appoint_time, service_id]):
-        #     messages.error(request, 'All required fields must be filled.')
-        #     return render(request, 'appointments.html')
-
-        # Split full name into first and last names
         try:
-            first_name, last_name = full_name.split(' ', 1)
-        except ValueError:
-            messages.error(request, 'Invalid full name format. Please provide both first and last names.')
-            return render(request, 'appointments.html')
+            full_name = request.POST.get('full_name')
+            email = request.POST.get('email')
+            phone = request.POST.get('phone')
+            appoint_date = request.POST.get('appoint_date')
+            appoint_time = request.POST.get('appoint_time')
+            service_id = request.POST.get('service')
+            notes = request.POST.get('notes')
 
-        # Retrieve or create patient
-        patient, created = Patient.objects.get_or_create(
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            defaults={'phone': phone}
-        )
+            # Handle cases where full_name does not contain a space
+            if ' ' in full_name:
+                first_name, last_name = full_name.rsplit(' ', 1)
+            else:
+                messages.error(request, "Full name must include both first and last names.")
+                return redirect('index')
 
-        # Retrieve service
-        try:
-            service = Service.objects.get(id=service_id)
-        except Service.DoesNotExist:
-            messages.error(request, 'Invalid service selected.')
-            return render(request, 'appointments.html')
+            # Check if the service exists
+            try:
+                service = Service.objects.get(id=service_id)
+            except ObjectDoesNotExist:
+                messages.error(request, "Invalid service selected.")
+                return redirect('index')
 
-        # Retrieve dentist (default to the first available dentist)
-        dentist = Dentist.objects.first()
-        if not dentist:
-            messages.error(request, 'No dentists available.')
-            return render(request, 'appointments.html')
+            # Ensure a dentist is available
+            dentist = Dentist.objects.first()
+            if not dentist:
+                messages.error(request, "No dentists available to assign appointments.")
+                return redirect('index')
 
-        # Parse date and time
-        try:
-            date_time_str = f"{appoint_date} {appoint_time}"
-            naive_date_time = timezone.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
-            aware_date_time = timezone.make_aware(naive_date_time, timezone.get_default_timezone())
-        except ValueError:
-            messages.error(request, 'Invalid date or time format. Please use the format YYYY-MM-DD HH:MM.')
-            return render(request, 'appointments.html')
+            # Parse and validate date and time
+            try:
+                date_time_str = f"{appoint_date} {appoint_time}"
+                naive_date_time = timezone.datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
+                aware_date_time = timezone.make_aware(naive_date_time, timezone.get_default_timezone())
+            except ValueError:
+                messages.error(request, "Invalid date or time format. Please use YYYY-MM-DD HH:MM.")
+                return redirect('index')
 
-        # Create appointment
-        appointment = Appointment.objects.create(
-            patient=patient,
-            dentist=dentist,
-            date_time=aware_date_time,
-            service=service,
-            notes=notes
-        )
+            # Create or retrieve the patient
+            patient, created = Patient.objects.get_or_create(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                defaults={'phone': phone}
+            )
 
-        # Send notification via WebSocket
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "appointment_notifications",
-            {
-                "type": "send_notification",
-                "message": f"New appointment: {appointment.patient.first_name} {appointment.patient.last_name}, Service: {appointment.service.name}, Date: {appointment.date_time.strftime('%Y-%m-%d %H:%M')}"
-            }
-        )
+            # Create the appointment
+            appointment = Appointment.objects.create(
+                patient=patient,
+                dentist=dentist,
+                date_time=aware_date_time,
+                service=service,
+                notes=notes
+            )
 
-        # Set session variable and redirect
-        request.session['appointment_created'] = True
-        return redirect('appointments')
+            # Notify via Channels
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    "appointment_notifications",
+                    {
+                        "type": "send_notification",
+                        "message": f"New appointment: {appointment.patient.first_name} {appointment.patient.last_name}, Service: {appointment.service.name}, Date: {appointment.date_time.strftime('%Y-%m-%d %H:%M')}"
+                    }
+                )
 
-    # Render the form for GET requests
+            # Set session flag and redirect
+            request.session['appointment_created'] = True
+            messages.success(request, "Appointment created successfully!")
+            return redirect('appointments')
+
+        except Exception as e:
+            # Catch unexpected errors and log them
+            messages.error(request, f"An error occurred: {str(e)}")
+            return redirect('appointments')
+
+    # Handle GET requests
     return render(request, 'appointments.html')
 
 
@@ -408,37 +418,39 @@ def patient_details(request, id):
     }
     
     return render(request, 'patient_details.html', context)
-
 @login_required
 def assign_dentist(request):
     if request.method == 'POST':
         appointment_id = request.POST.get('appointmentId')
         dentist_id = request.POST.get('dentist')
-        print('Function called')
-        
+
         if not appointment_id or not dentist_id:
             return JsonResponse({'success': False, 'message': 'Missing appointment or dentist ID.'})
-        
-        appointment = get_object_or_404(Appointment, id=appointment_id)
-        dentist = get_object_or_404(Dentist, id=dentist_id)
-        
+
+        try:
+            appointment = Appointment.objects.get(id=appointment_id)
+            dentist = Dentist.objects.get(id=dentist_id)
+        except (Appointment.DoesNotExist, Dentist.DoesNotExist):
+            return JsonResponse({'success': False, 'message': 'Invalid appointment or dentist ID.'})
+
+        status = 'Scheduled'
         appointment.dentist = dentist
-        appointment.status = 'Scheduled'  # Correctly update the status field
-        appointment.save()
-        print('After saving appointment:', appointment.status)  # Debugging: Check if the status is updated
-        
-        # send_mail(
-        #     'New Appointment Assigned',
-        #     f'Dear {dentist.user.first_name},\n\nYou have been assigned a new appointment with {appointment.patient.first_name} {appointment.patient.last_name} on {appointment.date_time}.\n\nBest Regards,\nSuperior Dental Solutions',
-        #     'clinic@example.com',
-        #     [dentist.user.email],  # Use dentist.user.email
-        #     fail_silently=False,
-        # )
-        
-        return JsonResponse({'success': True, 'message': 'Dentist assigned and notification sent.'})
+        appointment.status = status
+        print('Before saving appointment:', appointment.status)
+
+        try:
+            appointment.save()
+            print('After saving appointment:', Appointment.objects.get(id=appointment_id).status)
+        except Exception as e:
+            print(f'Error saving appointment: {e}')
+            return JsonResponse({'success': False, 'message': f'Error saving appointment: {e}'})
+
+        return JsonResponse({'success': True, 'message': 'Dentist assigned successfully.'})
     else:
         return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-    
+
+
+
 @login_required
 def scheduled_appointment_view(request):
     scheduled_appointments = Appointment.objects.filter(status='Scheduled')

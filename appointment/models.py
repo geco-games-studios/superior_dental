@@ -17,7 +17,7 @@ class Appointment(models.Model):
     is_patient_new = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Appointment for {self.patient} with {self.dentist} on {self.date_time}"
+        return f"Appointment for {self.patient} with {self.dentist.user.username} on {self.date_time}"
 
 class Service(models.Model):
     name = models.CharField(max_length=100)  # Required field
@@ -45,16 +45,27 @@ class Treatment(models.Model):
 
     def __str__(self):
         return f"Treatment for {self.appointment.patient} on {self.date}"
+
 class Dentist(models.Model):
     user = models.OneToOneField(
         CustomUser, 
         on_delete=models.CASCADE, 
         limit_choices_to={'user_type': 3}, 
-        related_name='appointment_dentist_profile'  # Unique related_name
+        related_name='appointment_dentist_profile'  # Unique related_name to avoid conflicts
     )
     specialization = models.CharField(max_length=200)
     contact_number = models.CharField(max_length=15)
     available_days = models.CharField(max_length=200)
 
     def __str__(self):
-        return f"Dr. {self.user.first_name} {self.user.last_name}"
+        """
+        Returns a string representation of the Dentist object.
+        Format: "Dr. {username}"
+        """
+        if self.user and hasattr(self.user, 'username'):
+            return f"Dr. {self.user.username}"
+        return "Dr. [No Username]"  # Fallback in case user is None or has no username
+
+    class Meta:
+        verbose_name = "Dentist"
+        verbose_name_plural = "Dentists"

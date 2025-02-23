@@ -228,57 +228,47 @@
         <!-- Modal body -->
         <form class="p-4 md:p-5" method='POST' action="{% url 'walkin_appointment' %}">
           {% csrf_token %}
-          <div class="grid gap-4 mb-4 grid-cols-2">
-            <div class="col-span-2">
-              <label class="block text-gray-700">Full Name</label>
-              <input type="text" name="full_name" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Name" required>
-            </div>
-            <div class="col-span-2">
-          
+          <div class="mb-4">
+            <label class="block text-gray-700">Full Name</label>
+            <input type="text" name="full_name" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Name" required>
+          </div>
+          <div class="mb-4">
             <label class="block text-gray-700">Email</label>
             <input type="email" name="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Email" required>
-            </div>
-
-            <div class="col-span-2">
-              <label class="block text-gray-700">Phone</label>
-              <input type="tel" name="phone" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Phone Number" required>
-            </div>
-      
-
-            <div class="col-span-2">
-              <label class="block text-gray-700">Appointment Date</label>
-              <input type="date" name="appoint_date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" required>
-            </div>
-
-
-            <div class="col-span-2">
-              <label class="block text-gray-700">Appointment Time</label>
-            </div>
-            <div class="col-span-2">
-              <label class="block text-gray-700">Service</label>
-              <select name="service" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Phone</label>
+            <input type="tel" name="phone" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Phone Number" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Appointment Date</label>
+            <input type="date" name="appoint_date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Appointment Time</label>
+            <input type="time" name="appoint_time" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Service</label>
+            <select name="service" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
                 {% for service in services %}
                     <option value="{{ service.id }}">
                         {{ service.name|default:"Unnamed Service" }}
+                       
                     </option>
                 {% empty %}
                     <option value="">No services available</option>
                 {% endfor %}
             </select>
-            </div>
-
-            <div class="col-span-2 sm:col-span-2">
-              <label class="block text-gray-700">Notes</label>
-              <textarea name="notes" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Notes"></textarea>
-            </div>
-
+        </div>
+          <div class="mb-4">
+            <label class="block text-gray-700">Notes</label>
+            <textarea name="notes" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Notes"></textarea>
           </div>
-          <button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700">
-            <svg class="me-1 -ms-1 w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-              <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
-            </svg>
-            Create Appointment
-          </button>
+          <div class="flex items-center justify-end">
+            <button type="button" class="bg-red-800 text-white py-2 px-4 rounded-md mr-2" id="cancel-button">Cancel</button>
+            <button type="submit" class="bg-sky-800 text-white py-2 px-4 rounded-md">Submit</button>
+          </div>
         </form>
       </div>
     </div>
@@ -310,7 +300,7 @@
               <label class="block text-gray-700">Select Dentist:</label>
               <select id="dentist" name="dentist" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
                 {% for dentist in dentists %}
-                  <option value="{{ dentist.id }}">{{ dentist.user.first_name }} {{ dentist.user.last_name }}</option>
+                  <option value="{{ dentist.id }}">{{ dentist.user.username}}</option>
                 {% endfor %}
               </select>
             </div>
@@ -387,7 +377,7 @@
       menu.classList.add('hidden');
     }
   }
-  
+
   </script>
-  
+
 {% endblock %}
