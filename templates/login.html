@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,15 +46,20 @@
 
 <body class="min-h-screen flex items-center justify-center bg-blue-800">
   <div class="w-full max-w-md">
+   
     <!-- Add form tag with POST method and CSRF token -->
     <form method="POST" action="{% url 'login' %}">
+    
       {% csrf_token %}
       
       <div class="rounded-lg shadow-lg bg-white overflow-hidden animate-fadeIn" style="animation-duration: 1s; animation-fill-mode: both;">
-        <!-- ... rest of your existing card structure ... -->
+       
         
         <!-- Modified Card Content -->
         <div class="p-6 space-y-4">
+          <h1 class="text-center text-xl font-bold">Superior Dental Solutions</h1>
+          <h1 class="text-center text-lg">DPMS</h1>
+          <img src="{% static 'img/lock-svgrepo-com.svg' %}" alt="Lock" class="mx-auto w-24 h-24 animate-spin" style="animation-duration: 2s; animation-iteration-count: infinite;">
           <!-- Email Input - Change id to username -->
           <div class="space-y-2">
             <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
