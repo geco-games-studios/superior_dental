@@ -20,6 +20,12 @@ urlpatterns = [
     path('clear_appointment_created_flag/', views.clear_appointment_created_flag, name='clear_appointment_created_flag'),
     path('patient_details/<int:id>', views.patient_details, name='patient_details'),
     path('assign_dentist/', views.assign_dentist, name='assign_dentist'),
+    path('update_patient_request/<int:patient_id>', views.update_patient_request, name='update_patient_request'),
+    path('update_patient/', views.update_patient, name='update_patient'),
+    path('complete_appointment/<int:appointment_id>', views.complete_appointment, name='complete_appointment'),
+
+    # path('delete_patient/', views.delete_patient, name='delete_patient'),
+    # path('delete_appointment/', views.delete_appointment, name='delete_appointment'),
     path('treatment_diagnosis', views.treatment_diagnosis, name='treatment_diagnosis'),
     path('scheduled_appointment', views.scheduled_appointment_view, name='scheduled_appointment'),
     

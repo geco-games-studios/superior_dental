@@ -68,8 +68,8 @@
         </div>
 
         <!-- Sidebar component, swap this element with another sidebar if you like -->
-        <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-600 px-6 pb-4">
-          <img src="{% static 'img/logo.png' %}" alt="logo" class="h-16 w-16">
+        <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-slate-900 px-6 pb-4">
+          <img src="{% static '/img/logo.png' %}" alt="logo" class="h-16 w-16">
           <div class="flex h-16 shrink-0 items-center">
            <h3 class="text-white font-semi-bold"> Superior Dental </h3>
           </div>
@@ -150,10 +150,12 @@
 
   <!-- Static sidebar for desktop -->
   <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+  
     <!-- Sidebar component, swap this element with another sidebar if you like -->
-    <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-600 px-6 pb-4">
+    <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-slate-900 px-6 pb-4">
       <div class="flex h-16 shrink-0 items-start justify-start">
-        <h1 class=" p-3 mx-4 text-white font-bold"> Superior Dental </h1>
+        <img src="{% static '/img/logo.png' %}" alt="logo" class="h-16 w-16">
+        <h1 class=" p-3 mx-3 text-white font-bold"> Superior Dental </h1>
       </div>
       <nav class="flex flex-1 flex-col">
         <ul role="list" class="flex flex-1 flex-col gap-y-7">

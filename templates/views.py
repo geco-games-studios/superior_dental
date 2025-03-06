@@ -7,7 +7,7 @@ from django.contrib import messages
 from user_accounts.forms import CustomUserCreationForm, DentistForm, StaffForm
 from user_accounts.models import CustomUser, Dentist, Staff
 from django.views.decorators.csrf import csrf_protect
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from channels.layers import get_channel_layer
@@ -145,7 +145,7 @@ def Dashboard(request):
     
 @login_required
 def PatientsPage(request):
-    patients = Patient.objects.all()
+    patients = Patient.objects.filter(is_patient=True).order_by('-id')
     return render(request, 'patients.html', {'patients': patients})
 
 @login_required
@@ -418,6 +418,8 @@ def patient_details(request, id):
     }
     
     return render(request, 'patient_details.html', context)
+
+
 @login_required
 def assign_dentist(request):
     if request.method == 'POST':
@@ -433,14 +435,12 @@ def assign_dentist(request):
         except (Appointment.DoesNotExist, Dentist.DoesNotExist):
             return JsonResponse({'success': False, 'message': 'Invalid appointment or dentist ID.'})
 
-        status = 'Scheduled'
+        # Assign dentist and set status to 'Scheduled'
         appointment.dentist = dentist
-        appointment.status = status
-        print('Before saving appointment:', appointment.status)
+        appointment.status = 'Scheduled'
 
         try:
-            appointment.save()
-            print('After saving appointment:', Appointment.objects.get(id=appointment_id).status)
+            appointment.save()  # Save the changes to the database
         except Exception as e:
             print(f'Error saving appointment: {e}')
             return JsonResponse({'success': False, 'message': f'Error saving appointment: {e}'})
@@ -448,8 +448,7 @@ def assign_dentist(request):
         return JsonResponse({'success': True, 'message': 'Dentist assigned successfully.'})
     else:
         return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-
-
+    
 
 @login_required
 def scheduled_appointment_view(request):
@@ -485,3 +484,93 @@ def treatment_diagnosis(request):
         return JsonResponse({'success': True, 'message': 'Treatment and diagnosis saved successfully.'})
     else:
         return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
+
+def update_patient_request(request, patient_id):
+    try:
+        # Fetch the patient object or raise 404 if not found
+        patient = get_object_or_404(Patient, id=patient_id)
+    except Exception as e:
+        print(f"Error fetching patient: {e}")
+        raise Http404("Patient not found")
+
+    # Pass the patient object to the template for display
+    context = {
+        'patient': patient,
+    }
+    return render(request, 'patient_update.html', context)
+
+
+def update_patient(request):
+    if request.method == 'POST':
+        # Retrieve form data from the POST request
+        patient_id = request.POST.get('patient_id')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone')
+        nrc = request.POST.get('nrc')
+        gender = request.POST.get('gender')
+        date_of_birth = request.POST.get('dob')
+        address = request.POST.get('address')
+
+        try:
+            # Attempt to fetch the patient by ID
+            patient = get_object_or_404(Patient, id=patient_id)
+
+            # Update patient fields
+            patient.first_name = first_name
+            patient.last_name = last_name
+            patient.date_of_birth = date_of_birth
+            patient.email = email
+            patient.phone = phone
+            patient.nrc = nrc
+            patient.gender = gender
+            patient.address = address
+            patient.is_patient = True  # Assuming this field exists in your model
+
+            # Save the updated patient
+            patient.save()
+
+            # Add success message
+            messages.success(request, 'Patient updated successfully!')
+        except Patient.DoesNotExist:
+            # Handle the case where the patient does not exist
+            messages.error(request, 'Failed to update the patient. The patient does not exist.')
+
+        # Redirect to the patients page
+        return redirect('patients')
+
+    else:
+        # If the request method is not POST, show an error message
+        messages.error(request, 'Failed to update the patient. Make sure all required fields are filled.')
+        return redirect('patients')
+
+def complete_appointment(request, appointment_id):
+   
+    try:
+        # Attempt to fetch the appointment by ID
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+
+        # Fetch the associated patient
+        patient = appointment.patient
+        print(f"Received appointment_id: {appointment_id}")
+
+        # Check if the patient's KYC is complete
+        if patient.is_patient:  # Assuming `is_patient` indicates incomplete KYC
+            messages.error(request, 'Patient KYC is not complete. Please complete the KYC first.')
+            return redirect('dashboard', {'messages': messages})
+
+        # Mark the appointment as completed
+        appointment.status = 'Completed'
+        appointment.save()
+
+        # Add success message
+        messages.success(request, 'Appointment marked as completed.')
+
+    except Appointment.DoesNotExist:
+        # Handle the case where the appointment does not exist
+        messages.error(request, 'Appointment not found.')
+
+    # Redirect to the dashboard
+    return redirect('dashboard')

@@ -30,6 +30,7 @@
             <div class="flex flex-col m-4 p-4">
                 {% if total_appointments %}
                 <div class="font-bold text-2xl text-white">{{ total_appointments }}</div>
+                <div class="text-xl text-white">Appointments</div>
                 {% else %}
                 <div class="font-bold text-2xl text-white">30</div>
                 <div class="text-xl text-white">Appointments</div>
@@ -57,6 +58,7 @@
             <div class="flex flex-col m-4 p-4">
                 {% if total_patients %}
                 <div class="font-bold text-2xl text-white">{{ total_patients }}</div>
+                <div class="text-xl text-white">Patients</div>
                 {% else %}
                 <div class="font-bold text-2xl text-white">170</div>
                 <div class="text-xl text-white">Patients</div>
@@ -107,7 +109,7 @@
     <ol class="mx-5 divide-y divider-gray-200 dark:divide-gray-700">
         <li>
             {% for scheduled_appoints in scheduled_appointments %}
-            <a href="#" class="items-center bg-blue-500 rounded-md block p-3 my-3 sm:flex hover:bg-blue-100 dark:hover:bg-blue-900">
+            <a href="{% url 'update_patient_request' scheduled_appoints.patient.id %}" class="items-center bg-blue-500 rounded-md block p-3 my-3 sm:flex hover:bg-blue-100 dark:hover:bg-blue-900">
                 <div class="text-gray-600 dark:text-white">
                     <div class="flex flex-row justify-between gap-5">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8  mx-2 h-20 w-20">
@@ -124,7 +126,8 @@
                     </div>
                   
         
-                    <div class="text-sm font-normal mt-3">
+                    <div class="text-sm font-normal mt-3 bg-slate-800 dark:bg-gray-700">
+                        <a href="{% url 'complete_appointment' scheduled_appoints.patient.id %}" class="text-blue-600 bg-slate-800 hover:underline dark:text-blue-500">
                         <form class="max-w-[16rem] mx-auto grid grid-cols-2 p-2 gap-4">
                             <div>
                                 <label for="start-time" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Start time:</label>
@@ -137,8 +140,9 @@
                                         max="18:00" 
                                         value="{% if scheduled_appoints.date_time %}{{ scheduled_appoints.date_time|date:'H:i' }}{% else %}09:00{% endif %}" />
                                 </div>
+                                
                             </div>
-                    
+                           
                             <div>
                                 <label for="end-time" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">End time:</label>
                                 <input 
@@ -149,7 +153,11 @@
                                     max="18:00" 
                                     value="{% if scheduled_appoints.date_time %}{{ scheduled_appoints.date_time|date:'H:i' }}{% else %}18:00{% endif %}" />
                             </div>
+
+                           
                         </form>
+                        <h1 class="m-4 p-4 font-bond text-white">Complete Appointment</h1>
+                        </a>
                         {% endfor %}
                     </div>
             </a>
@@ -236,6 +244,7 @@
                 </div>
             </li>
             {% endfor %}
+            
             {% comment %} <li class="py-3 sm:py-4 bg-blue-700 dark:hover-bg-blue-900 p-4 my-3 rounded-md">
                 <div class="flex items-center ">
                     <div class="flex-shrink-0">
