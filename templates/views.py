@@ -454,39 +454,9 @@ def assign_dentist(request):
 def scheduled_appointment_view(request):
     scheduled_appointments = Appointment.objects.filter(status='Scheduled')
     return render(request, 'schuled_appointment.html', {'scheduled_appointments': scheduled_appointments})
+from django.shortcuts import get_object_or_404, render, Http404
 
-@login_required
-def treatment_diagnosis(request):
-    if request.method == 'POST':
-        appointment_id = request.POST.get('appointmentId')
-        service_id = request.POST.get('service')
-        treatment_text = request.POST.get('treatment_text')
-        diagnosis_text = request.POST.get('diagnosis_text')
-        
-        if not appointment_id or not service_id or not treatment_text or not diagnosis_text:
-            return JsonResponse({'success': False, 'message': 'Missing required fields.'})
-        
-        appointment = get_object_or_404(Appointment, id=appointment_id)
-        service = get_object_or_404(Service, id=service_id)
-        
-        treatment = Treatment.objects.create(
-            appointment=appointment,
-            service=service,
-            treatment_text=treatment_text
-        )
-        
-        diagnosis = Diagnosis.objects.create(
-            appointment=appointment,
-            service=service,
-            diagnosis_text=diagnosis_text
-        )
-        
-        return JsonResponse({'success': True, 'message': 'Treatment and diagnosis saved successfully.'})
-    else:
-        return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-
-
-def update_patient_request(request, patient_id):
+def treatment_request(request, patient_id):
     try:
         # Fetch the patient object or raise 404 if not found
         patient = get_object_or_404(Patient, id=patient_id)
@@ -498,7 +468,65 @@ def update_patient_request(request, patient_id):
     context = {
         'patient': patient,
     }
-    return render(request, 'patient_update.html', context)
+    return render(request, 'treatment_request.html', context)  # Pass `request` as the first argument
+
+@login_required
+def treatment_diagnosis(request):
+    if request.method == 'POST':
+        appointment_id = request.POST.get('appointmentId')
+        service_id = request.POST.get('service')
+        treatment_text = request.POST.get('treatment_text')
+        diagnosis_text = request.POST.get('diagnosis_text')
+
+        if not appointment_id or not service_id or not treatment_text or not diagnosis_text:
+            return JsonResponse({'success': False, 'message': 'Missing required fields.'})
+
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        service = get_object_or_404(Service, id=service_id)
+
+        treatment = Treatment.objects.create(
+            appointment=appointment,
+            service=service,
+            treatment_text=treatment_text
+        )
+
+        diagnosis = Diagnosis.objects.create(
+            appointment=appointment,
+            service=service,
+            diagnosis_text=diagnosis_text
+        )
+
+        return JsonResponse({'success': True, 'message': 'Treatment and diagnosis saved successfully.'})
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+
+def update_patient_request(request, patient_id):
+    try:
+        # Fetch the patient object or raise 404 if not found
+        patient = get_object_or_404(Patient, id=patient_id)
+    except Exception as e:
+        print(f"Error fetching patient: {e}")
+        messages.error(request, "Failed to fetch the patient. Please try again.")
+        return redirect('patients')  # Redirect to the patients list page
+
+    try:
+        # Fetch services object or raise 404 if not found
+        services = Service.objects.filter(name__isnull=False, price__isnull=False).order_by('name')
+        print(f"List of services: {[(s.id, s.name, s.price) for s in services]}")  # Debug statement
+    except Exception as e:
+        print(f"Error fetching services: {e}")
+        services = []  # Fallback to an empty list if an error occurs
+
+    if not services:
+        print("[WARNING] No services found matching the filter criteria.")
+        messages.warning(request, "No services available. Please contact the administrator.")
+
+    # Pass the patient object and services to the template for display
+    context = {
+        'patient': patient,
+        'services': services,
+    }
+    return render(request, 'update_patient.html', context)
 
 
 def update_patient(request):
@@ -547,7 +575,6 @@ def update_patient(request):
         return redirect('patients')
 
 def complete_appointment(request, appointment_id):
-   
     try:
         # Attempt to fetch the appointment by ID
         appointment = get_object_or_404(Appointment, id=appointment_id)

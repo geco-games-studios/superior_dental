@@ -23,6 +23,7 @@ urlpatterns = [
     path('update_patient_request/<int:patient_id>', views.update_patient_request, name='update_patient_request'),
     path('update_patient/', views.update_patient, name='update_patient'),
     path('complete_appointment/<int:appointment_id>', views.complete_appointment, name='complete_appointment'),
+    path('treatment_request/<int:patient_id>/', views.treatment_request, name='treatment_request'),
 
     # path('delete_patient/', views.delete_patient, name='delete_patient'),
     # path('delete_appointment/', views.delete_appointment, name='delete_appointment'),

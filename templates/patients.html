@@ -38,9 +38,6 @@
                       </svg>
 
                 </button>
-                  
-                
-                  
 
             </div>
 
@@ -215,9 +212,13 @@
                         <a href="#" class="flex justify-between px-4 text-red-800 py-2 text-sm text-gray-700" role="menuitem">
                           <span>Delete</span>
                         </a>
-                        <button type="button" class="flex w-full justify-between px-4 py-2 text-sm text-gray-700" role="menuitem">
-                          <span>treatment</span>
-                        </button>
+
+                        <a href="{% url 'treatment_request' patient.id %}" class="flex justify-between px-4 py-2 text-sm text-gray-700" role="menuitem">
+                          
+                            <span>treatment</span>
+                        
+                        </a>
+                        
                       </div>
                     </div>
                   </td>
