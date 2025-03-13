@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{%block title %}Invoices{% endblock %}
+{% block content %}
+
+
+<div class="container flex justify-between items-end">
+
+  {% if messages %}
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+      {% for message in messages %}
+      Swal.fire({
+          icon: '{{ message.tags }}',
+          title: '{{ message.tags|title }}',
+          text: '{{ message|escapejs }}',
+          timer: 3000,
+          timerProgressBar: true,
+          showConfirmButton: false
+      });
+      {% endfor %}
+  });
+  </script>
+  {% endif %}
+
+
+  <h1>Invoices</h1>
+  <a href="{% url 'create_invoice_list' %}" class="btn btn-primary p-2 rounded bg-blue-800 text-white">Create Invoice</a>
+
+</div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Invoice #</th>
+        <th>Patient</th>
+        <th>Total</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for invoice in invoices %}
+        <tr>
+          <td><a href="{% url 'invoice_detail' invoice.id %}">{{ invoice.id }}</a></td>
+          <td>{{ invoice.patient.name }}</td>
+          <td>{{ invoice.total_amount }}</td>
+          <td>{{ invoice.get_status_display }}</td>
+          <td>{{ invoice.created_at }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+
+{% endblock %}

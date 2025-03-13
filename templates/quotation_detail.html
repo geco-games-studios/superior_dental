@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 bg-gray-800 text-gray-200 p-8 rounded-lg shadow-lg">
+    <div class="flex justify-between items-end">
+        <h1 class="text-2xl font-bold text-white mb-6">Superior Dental Solutions Limited</h1>
+        <a href="{% url 'quotation_list' %}" class="bg-green-800 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md">
+            Generate Invoice
+        </a>
+    </div>
+    <h2 class="text-2xl font-bold text-blue-400 mb-6">Quotation Details</h2>
+
+    <!-- Patient Info -->
+    <div class="mb-6 border-b border-gray-700 pb-4">
+        <h2 class="text-lg font-semibold text-gray-300">Patient Information</h2>
+        <p><span class="font-medium">Name:</span> {{ quotation.patient.first_name }} {{ quotation.patient.last_name }}</p>
+        <p><span class="font-medium">Email:</span> {{ quotation.patient.email }}</p>
+        <p><span class="font-medium">Phone:</span> {{ quotation.patient.phone }}</p>
+    </div>
+
+    <!-- Quotation Info -->
+    <div class="mb-6 border-b border-gray-700 pb-4">
+        <h2 class="text-lg font-semibold text-gray-300">Quotation Details</h2>
+        <p><span class="font-medium">Quotation ID:</span> #{{ quotation.id }}</p>
+        <p><span class="font-medium">Date:</span> {{ quotation.updated_at }}</p>
+        <p><span class="font-medium">Status:</span> <span class="px-3 py-1 text-xs font-bold text-white {% if quotation.status == 'approved' %} bg-green-600 {% else %} bg-yellow-600 {% endif %} rounded">
+            {{ quotation.status|title }}
+        </span></p>
+    </div>
+
+    <!-- Services Table -->
+    <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-300">Services Included</h2>
+        <div class="overflow-x-auto mt-3">
+            <table class="min-w-full border border-gray-700">
+                <thead>
+                    <tr class="bg-gray-700 text-gray-300">
+                        <th class="px-4 py-2 text-left">Service</th>
+                        <th class="px-4 py-2 text-center">Quantity</th>
+                        <th class="px-4 py-2 text-right">Price</th>
+                        <th class="px-4 py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in quotation.quotationservice_set.all %}
+                    <tr class="border-t border-gray-700">
+                        <td class="px-4 py-2">{{ item.service.name }}</td>
+                        <td class="px-4 py-2 text-center">{{ item.quantity }}</td>
+                        <td class="px-4 py-2 text-right">K{{ item.price_at_time }}</td>
+                        <td class="px-4 py-2 text-right">{{ item.total_price }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="border-t border-gray-700">
+                        <td colspan="3" class="px-4 py-2 font-semibold text-right">Total Amount:</td>
+                        <td class="px-4 py-2 font-semibold text-right text-green-400">K{{ quotation.total_amount }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex justify-between">
+        <a href="{% url 'download_quotation_pdf' quotation.id %}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md">
+            Download PDF
+        </a>
+        <a href="{% url 'quotation_list' %}" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg shadow-md">
+            Back to List
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -29,7 +29,7 @@ class Service(models.Model):
         return self.name
 
 class Diagnosis(models.Model):
-    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE)
+    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, blank=True, null=True)
     service = models.ForeignKey(Service, on_delete=models.CASCADE, blank=True, null=True)
     diagnosis_text = models.TextField()
     date = models.DateTimeField(auto_now_add=True)
@@ -38,7 +38,7 @@ class Diagnosis(models.Model):
         return f"Diagnosis for {self.appointment.patient} on {self.date}"
 
 class Treatment(models.Model):
-    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE)
+    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, blank=True, null=True)
     service = models.ForeignKey(Service, on_delete=models.CASCADE, blank=True, null=True)
     treatment_text = models.TextField()
     date = models.DateTimeField(auto_now_add=True)

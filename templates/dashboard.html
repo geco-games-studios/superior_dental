@@ -85,8 +85,10 @@
             </div>
 
             <div class="flex flex-col m-4 p-4">
-                <div class="font-bold text-2xl text-white">103</div>
-                <div class="text-xl text-white">Consultancy</div>
+                {% if total_quotations %}
+                <div class="font-bold text-2xl text-white">{{ total_quotations }}</div>
+                <div class="text-xl text-white">Quotations</div>
+                {% endif %}
             </div>
     
 

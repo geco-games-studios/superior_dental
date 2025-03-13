@@ -1,13 +1,18 @@
+from django.utils.html import escape
+from xhtml2pdf import pisa 
 from django.contrib.auth import authenticate, login
+from decimal import Decimal
+import datetime
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render, redirect
+from django.db.models import Q
 from patient.models import Patient
 from appointment.models import Appointment, Service, Treatment, Diagnosis
 from django.contrib import messages
 from user_accounts.forms import CustomUserCreationForm, DentistForm, StaffForm
 from user_accounts.models import CustomUser, Dentist, Staff
 from django.views.decorators.csrf import csrf_protect
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, HttpResponseBadRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from channels.layers import get_channel_layer
@@ -20,6 +25,11 @@ from django.http import JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from user_accounts.forms import CustomUserCreationForm
 from django.contrib.auth import logout
+from payments.models import Payment, Invoice
+from django.db import transaction
+from django.contrib.auth.decorators import login_required, user_passes_test
+from payments.models import Invoice, Payment, InvoiceService, Quotation, QuotationService
+from payments.forms import InvoiceForm, PaymentForm
 
 
 
@@ -141,7 +151,9 @@ def Dashboard(request):
     pending_appointments = Appointment.objects.filter(status='Pending')
     completed_appointments = Appointment.objects.filter(status='Completed')
     cancelled_appointments = Appointment.objects.filter(status='Cancelled')
-    return render(request, 'dashboard.html', {'scheduled_appointments': scheduled_appointments, 'pending_appointments': pending_appointments, 'completed_appointments': completed_appointments, 'cancelled_appointments': cancelled_appointments, 'logined_user': logined_user, 'total_appointments': total_appointments, 'total_patients': total_patients, 'total_appointments': total_appointments})
+    total_quotations = Quotation.objects.all().count()
+    return render(request, 'dashboard.html', {'scheduled_appointments': scheduled_appointments, 'pending_appointments': pending_appointments, 'completed_appointments': completed_appointments, 'cancelled_appointments': cancelled_appointments, 'logined_user': logined_user, 'total_appointments': total_appointments, 'total_patients': total_patients, 'total_appointments': total_appointments
+                                              , 'total_quotations': total_quotations})
     
 @login_required
 def PatientsPage(request):
@@ -194,22 +206,26 @@ def CreatePatient(request):
 
 def AppointmentsPage(request):
     # Retrieve pending appointments
-    appointments = Appointment.objects.filter(status='Pending')
+    pending_appointments = Appointment.objects.filter(status='Pending')
+    scheduled_appointments = Appointment.objects.filter(status='Scheduled')
+    completed_appointments = Appointment.objects.filter(status='Completed')
     
     # Retrieve dentists with user_type=3
     dentists = Dentist.objects.filter(user__user_type=3)
     
     # Retrieve services with valid name and price
     services = Service.objects.filter(name__isnull=False, price__isnull=False)
-    
+
     # Pass all data to the template
     return render(
         request,
         'appointments.html',
         {
-            'appointments': appointments,  # Pending appointments
-            'dentists': dentists,         # List of dentists
-            'services': services          # Services with valid name and price
+             'pending_appointments': pending_appointments,
+            'completed_appointments': completed_appointments,   # Retrieve completed appointments
+            'scheduled_appointments': scheduled_appointments,  # Retrieve scheduled appointments
+            'dentists': dentists,
+            'services': services,
         }
     )
 
@@ -322,9 +338,11 @@ def create_appointment(request):
 
 
 @csrf_protect
+
 def walk_in_appointment(request):
     if request.method == 'POST':
         try:
+            # Retrieve form data
             full_name = request.POST.get('full_name')
             email = request.POST.get('email')
             phone = request.POST.get('phone')
@@ -333,25 +351,25 @@ def walk_in_appointment(request):
             service_id = request.POST.get('service')
             notes = request.POST.get('notes')
 
-            # Handle cases where full_name does not contain a space
-            if ' ' in full_name:
-                first_name, last_name = full_name.rsplit(' ', 1)
-            else:
+            # Validate full name
+            if ' ' not in full_name:
                 messages.error(request, "Full name must include both first and last names.")
-                return redirect('index')
+                return redirect('scheduled_appointment')
+            
+            first_name, last_name = full_name.rsplit(' ', 1)
 
-            # Check if the service exists
+            # Validate service selection
             try:
                 service = Service.objects.get(id=service_id)
             except ObjectDoesNotExist:
                 messages.error(request, "Invalid service selected.")
-                return redirect('index')
+                return redirect('scheduled_appointment')
 
             # Ensure a dentist is available
             dentist = Dentist.objects.first()
             if not dentist:
                 messages.error(request, "No dentists available to assign appointments.")
-                return redirect('index')
+                return redirect('scheduled_appointment')
 
             # Parse and validate date and time
             try:
@@ -360,15 +378,19 @@ def walk_in_appointment(request):
                 aware_date_time = timezone.make_aware(naive_date_time, timezone.get_default_timezone())
             except ValueError:
                 messages.error(request, "Invalid date or time format. Please use YYYY-MM-DD HH:MM.")
-                return redirect('index')
+                return redirect('scheduled_appointment')
 
             # Create or retrieve the patient
-            patient, created = Patient.objects.get_or_create(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                defaults={'phone': phone}
-            )
+            try:
+                patient, created = Patient.objects.get_or_create(
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    defaults={'phone': phone}
+                )
+            except Exception as e:
+                messages.error(request, f"Error creating or retrieving patient: {str(e)}")
+                return redirect('scheduled_appointment')
 
             # Create the appointment
             appointment = Appointment.objects.create(
@@ -386,22 +408,27 @@ def walk_in_appointment(request):
                     "appointment_notifications",
                     {
                         "type": "send_notification",
-                        "message": f"New appointment: {appointment.patient.first_name} {appointment.patient.last_name}, Service: {appointment.service.name}, Date: {appointment.date_time.strftime('%Y-%m-%d %H:%M')}"
+                        "message": (
+                            f"New appointment: {appointment.patient.first_name} {appointment.patient.last_name}, "
+                            f"Service: {appointment.service.name}, "
+                            f"Date: {appointment.date_time.strftime('%Y-%m-%d %H:%M')}"
+                        )
                     }
                 )
 
             # Set session flag and redirect
             request.session['appointment_created'] = True
             messages.success(request, "Appointment created successfully!")
-            return redirect('appointments')
+            return redirect('scheduled_appointment')
 
         except Exception as e:
             # Catch unexpected errors and log them
-            messages.error(request, f"An error occurred: {str(e)}")
-            return redirect('appointments')
+            messages.error(request, f"An unexpected error occurred: {str(e)}")
+            return redirect('scheduled_appointment')
 
     # Handle GET requests
-    return render(request, 'appointments.html')
+    return render(request, 'scheduled_appointment.html')
+
 
 
 def patient_details(request, id):
@@ -416,7 +443,6 @@ def patient_details(request, id):
         'treatments': treatments,
         'diagnoses': diagnoses,
     }
-    
     return render(request, 'patient_details.html', context)
 
 
@@ -452,9 +478,11 @@ def assign_dentist(request):
 
 @login_required
 def scheduled_appointment_view(request):
-    scheduled_appointments = Appointment.objects.filter(status='Scheduled')
-    return render(request, 'schuled_appointment.html', {'scheduled_appointments': scheduled_appointments})
-from django.shortcuts import get_object_or_404, render, Http404
+    appointments = Appointment.objects.all()
+    services = Service.objects.all()
+    services = Service.objects.all()
+    return render(request, 'schuled_appointment.html', {'appointments':appointments, 'services':services})
+
 
 def treatment_request(request, patient_id):
     try:
@@ -464,51 +492,7 @@ def treatment_request(request, patient_id):
         print(f"Error fetching patient: {e}")
         raise Http404("Patient not found")
 
-    # Pass the patient object to the template for display
-    context = {
-        'patient': patient,
-    }
-    return render(request, 'treatment_request.html', context)  # Pass `request` as the first argument
-
-@login_required
-def treatment_diagnosis(request):
-    if request.method == 'POST':
-        appointment_id = request.POST.get('appointmentId')
-        service_id = request.POST.get('service')
-        treatment_text = request.POST.get('treatment_text')
-        diagnosis_text = request.POST.get('diagnosis_text')
-
-        if not appointment_id or not service_id or not treatment_text or not diagnosis_text:
-            return JsonResponse({'success': False, 'message': 'Missing required fields.'})
-
-        appointment = get_object_or_404(Appointment, id=appointment_id)
-        service = get_object_or_404(Service, id=service_id)
-
-        treatment = Treatment.objects.create(
-            appointment=appointment,
-            service=service,
-            treatment_text=treatment_text
-        )
-
-        diagnosis = Diagnosis.objects.create(
-            appointment=appointment,
-            service=service,
-            diagnosis_text=diagnosis_text
-        )
-
-        return JsonResponse({'success': True, 'message': 'Treatment and diagnosis saved successfully.'})
-    else:
-        return JsonResponse({'success': False, 'message': 'Invalid request method.'})
-
-def update_patient_request(request, patient_id):
-    try:
-        # Fetch the patient object or raise 404 if not found
-        patient = get_object_or_404(Patient, id=patient_id)
-    except Exception as e:
-        print(f"Error fetching patient: {e}")
-        messages.error(request, "Failed to fetch the patient. Please try again.")
-        return redirect('patients')  # Redirect to the patients list page
-
+   
     try:
         # Fetch services object or raise 404 if not found
         services = Service.objects.filter(name__isnull=False, price__isnull=False).order_by('name')
@@ -526,8 +510,75 @@ def update_patient_request(request, patient_id):
         'patient': patient,
         'services': services,
     }
-    return render(request, 'update_patient.html', context)
+    return render(request, 'treatment_request.html', context)
+@login_required
+def treatment_diagnosis(request):
+    if request.method == 'POST':
+        patient_id = request.POST.get('patient_id')
+        service_id = request.POST.get('services')
+        treatment_text = request.POST.get('treatment_text')
+        diagnosis_text = request.POST.get('diagnosis_text')
+        date_str = request.POST.get('date')
 
+        # Check required fields
+        if not all([patient_id, service_id, treatment_text, diagnosis_text, date_str]):
+            messages.error(request, 'Missing required fields.')
+            return render(request, 'patients.html')
+
+        # Validate date
+        try:
+            date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, 'Invalid date format. Use YYYY-MM-DD.')
+            return render(request, 'patients.html')
+
+        # Get patient
+        try:
+            patient = Patient.objects.get(id=patient_id)
+        except Patient.DoesNotExist:
+            messages.error(request, 'Patient not found.')
+            return render(request, 'patients.html')
+
+        # Check appointments
+        appointments = Appointment.objects.filter(patient=patient, status='Scheduled')
+        if not appointments.exists():
+            messages.error(request, 'No scheduled appointments found. Create one first.')
+            return render(request, 'patients.html')
+        appointment = appointments.first()
+
+        # Get service
+        try:
+            service = Service.objects.get(id=service_id)
+        except Service.DoesNotExist:
+            messages.error(request, 'Service not found.')
+            return render(request, 'patients.html')
+
+        # Create records
+        try:
+            Treatment.objects.create(
+                appointment=appointment,
+                service=service,
+                treatment_text=treatment_text,
+                date=date
+            )
+            Diagnosis.objects.create(
+                appointment=appointment,
+                service=service,
+                diagnosis_text=diagnosis_text,
+                date=date
+            )
+        except Exception as e:
+            messages.error(request, f'Error saving data: {str(e)}')
+            return render(request, 'patient.html')
+
+        messages.success(request, 'Treatment and diagnosis saved successfully.')
+        return render(request, 'patients.html')
+    else:
+        return render(request, 'patients.html')
+
+def update_patient_request(request, patient_id):
+    patient = Patient.objects.get(id=patient_id)
+    return render(request, 'patient_update.html', {'patient': patient})
 
 def update_patient(request):
     if request.method == 'POST':
@@ -574,6 +625,37 @@ def update_patient(request):
         messages.error(request, 'Failed to update the patient. Make sure all required fields are filled.')
         return redirect('patients')
 
+# Search for patient
+
+
+def search_patient(request):
+    if request.method == 'POST':
+        # Retrieve the search input
+        search_item = request.POST.get('search_item', '').strip()
+
+        # Build a dynamic query
+        query = Q()
+        if search_item:
+            query |= Q(first_name__icontains=search_item)
+            query |= Q(last_name__icontains=search_item)
+            query |= Q(email__icontains=search_item)
+
+        # Filter patients based on the query
+        if query:
+            patients = Patient.objects.filter(query)
+        else:
+            patients = Patient.objects.none()  # Return no results if search_item is empty
+
+        # Render the results
+        return render(request, 'search_patient.html', {'patients': patients})
+
+    else:
+        # No records found
+        messages.error(request, 'No records found.')
+        # Render the search form again
+        return render(request,'search_patient.html', {'messages': messages})
+
+
 def complete_appointment(request, appointment_id):
     try:
         # Attempt to fetch the appointment by ID
@@ -583,21 +665,362 @@ def complete_appointment(request, appointment_id):
         patient = appointment.patient
         print(f"Received appointment_id: {appointment_id}")
 
-        # Check if the patient's KYC is complete
-        if patient.is_patient:  # Assuming `is_patient` indicates incomplete KYC
-            messages.error(request, 'Patient KYC is not complete. Please complete the KYC first.')
-            return redirect('dashboard', {'messages': messages})
-
         # Mark the appointment as completed
         appointment.status = 'Completed'
         appointment.save()
+        print('completed')
 
         # Add success message
-        messages.success(request, 'Appointment marked as completed.')
+        messages.success(request, 'Appointment Completed.')
 
     except Appointment.DoesNotExist:
         # Handle the case where the appointment does not exist
         messages.error(request, 'Appointment not found.')
 
     # Redirect to the dashboard
-    return redirect('dashboard')
+    return redirect('appointments')
+
+
+#  Helper decorator for staff check
+def staff_required(view_func):
+    decorated_view = login_required(user_passes_test(lambda u: u.is_staff)(view_func))
+    return decorated_view
+
+def invoice_list_view(request):
+    invoices = Invoice.objects.all()
+    return render(request, 'invoice_list.html', {
+        'invoices': invoices
+    })
+
+
+
+@staff_required
+def invoice_detail_view(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk)
+    
+    if request.method == 'POST':
+        # Handle payment form submission
+        payment_form = PaymentForm(request.POST, invoice=invoice)
+        if payment_form.is_valid():
+            payment = payment_form.save(commit=False)
+            payment.invoice = invoice
+            payment.patient = invoice.patient
+            payment.processed_by = request.user
+            payment.save()
+            return redirect('invoice_detail', pk=pk)
+    else:
+        payment_form = PaymentForm(invoice=invoice)
+    
+    payments = invoice.payment_set.all()
+    remaining_balance = invoice.get_remaining_balance()
+    
+    return render(request, 'invoice_detail.html', {
+        'object': invoice,
+        'payment_form': payment_form,
+        'payments': payments,
+        'remaining_balance': remaining_balance
+    })
+
+
+def create_payment(request, invoice_id):
+    try:
+        with transaction.atomic():
+            invoice = Invoice.objects.select_for_update().get(id=invoice_id)
+            
+            # Get form data
+            amount = request.POST.get('amount')
+            payment_method = request.POST.get('payment_method')
+            transaction_id = request.POST.get('transaction_id', '')
+            notes = request.POST.get('notes', '')
+
+            # Validate required fields
+            if not all([amount, payment_method]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+            # Convert amount to decimal
+            try:
+                amount = Decimal(amount)
+            except:
+                return JsonResponse({'error': 'Invalid amount format'}, status=400)
+
+            # Check if payment exceeds remaining balance
+            remaining_balance = invoice.total_amount - invoice.get_total_payments()
+            if amount > remaining_balance:
+                return JsonResponse({
+                    'error': f'Payment exceeds remaining balance of {remaining_balance:.2f}'
+                }, status=400)
+
+            # Create payment instance
+            payment = Payment(
+                patient=invoice.patient,
+                invoice=invoice,
+                appointment=invoice.appointment,
+                processed_by=request.user,
+                amount=amount,
+                payment_method=payment_method,
+                transaction_id=transaction_id if payment_method != 'cash' else '',
+                notes=notes,
+                status='completed'  # Assuming immediate completion for cash payments
+            )
+            
+            # Validate and save
+            payment.full_clean()
+            payment.save()
+
+            # Return success response
+            return JsonResponse({
+                'status': 'success',
+                'payment_id': payment.id,
+                'invoice_status': invoice.status,
+                'remaining_balance': float(invoice.total_amount - invoice.get_total_payments())
+            })
+
+    except Invoice.DoesNotExist:
+        return JsonResponse({'error': 'Invoice not found'}, status=404)
+    except ValidationError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': 'Payment failed: ' + str(e)}, status=500)
+
+
+
+
+# Create invoice template
+def create_invoice_list_view(request):
+    patients = Patient.objects.filter(is_patient=True)
+    return render(request, 'create_invoice.html', {
+        'patients': patients
+    })
+
+def create_invoice(request):
+    if request.method == 'POST':
+    # Retrieve the patient ID from the request (e.g., via query parameters or POST data)
+        patient_id = request.GET.get('patient_id') or request.POST.get('patient_id')
+        if not patient_id:
+            return HttpResponseBadRequest("Patient ID is required.")
+
+        # Fetch the patient object
+        patient = get_object_or_404(Patient, id=patient_id)
+
+    if request.method == 'POST':
+        form = InvoiceForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                # Create the invoice
+                invoice = form.save(commit=False)
+                invoice.created_by = request.user
+                invoice.patient = patient  # Associate the invoice with the patient
+                invoice.save()
+
+                # Process selected services
+                selected_service_ids = request.POST.getlist('services')  # Get selected service IDs
+                total_amount = 0
+
+                for service_id in selected_service_ids:
+                    service = get_object_or_404(Service, id=service_id)
+                    InvoiceService.objects.create(
+                        invoice=invoice,
+                        service=service,
+                        price_at_time=service.price
+                    )
+                    total_amount += service.price  # Accumulate the total amount
+
+                # Update the invoice's total amount
+                invoice.total_amount = total_amount
+                invoice.save()
+
+                # Redirect to the invoice list or detail page
+                return redirect('invoice_list')
+    else:
+        # Pre-fill the form with patient details
+        initial_data = {
+            'patient_id': patient.id,
+            'email': patient.email,
+            'phone': patient.phone,
+        }
+        form = InvoiceForm(initial=initial_data)
+
+    # Fetch all available services for the dropdown
+    services = Service.objects.all()
+    # message for error
+    messages.error(request, 'An error occurred. Please try again.')
+
+    return render(request, 'invoice_form.html', {
+        'form': form,
+        'patient': patient,
+        'services': services,
+        'messages': messages  # Get the error message from the session
+    })
+
+    
+def patient_invoice(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    services = Service.objects.all()
+    return render(request, 'invoice_form.html', {
+        'patient': patient,
+        'services': services
+    })
+
+
+def create_quotation_list(request):
+    patients = Patient.objects.all()
+    return render(request, 'create_quotation_list.html', {
+        'patients': patients
+    })
+
+
+
+def create_quotation(request):
+    if request.method == 'POST':
+        patient_id = request.POST.get('patient_id')
+        selected_service_ids = request.POST.getlist('services')
+        quantities = request.POST.getlist('quantities')
+
+        # Ensure quantities list is valid
+        if not selected_service_ids:
+            return JsonResponse({'error': 'No services selected'}, status=400)
+
+        if len(quantities) < len(selected_service_ids):
+            return JsonResponse({'error': 'Missing quantities for some services'}, status=400)
+
+        patient = get_object_or_404(Patient, id=patient_id)
+
+        with transaction.atomic():
+            # Create the quotation
+            quotation = Quotation.objects.create(patient=patient, status='draft')
+
+            # Add selected services to the quotation
+            total_amount = Decimal('0.00')
+            for i, service_id in enumerate(selected_service_ids):
+                service = get_object_or_404(Service, id=service_id)
+
+                # Ensure quantity exists before accessing
+                try:
+                    quantity = int(quantities[i])
+                except (IndexError, ValueError):
+                    quantity = 1  # Default quantity if missing or invalid
+
+                price_at_time = service.price  # Capture the current price
+                total_amount += price_at_time * quantity
+
+                # Create QuotationService records
+                QuotationService.objects.create(
+                    quotation=quotation,
+                    service=service,
+                    price_at_time=price_at_time,
+                    quantity=quantity
+                )
+
+            # Update the total amount
+            quotation.total_amount = total_amount
+            quotation.save()
+
+            return redirect('quotation_detail', pk=quotation.pk)
+
+    # Fetch all patients and services for the form
+    patients = Patient.objects.all()
+    services = Service.objects.all()
+
+    return render(request, 'create_quotation.html', {
+        'patients': patients,
+        'services': services,
+    })
+
+def quotation_detail(request, pk):
+    quotation = get_object_or_404(Quotation, pk=pk)
+    return render(request, 'quotation_detail.html', {'quotation': quotation})
+
+
+def download_quotation_pdf(request, quotation_id):
+    """
+    Generate and download a formal quotation PDF with Superior Dental branding.
+    """
+    # Retrieve the quotation object
+    quotation = get_object_or_404(Quotation, id=quotation_id)
+
+    # Construct the HTML content for the PDF
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; padding: 20px; }}
+            .header {{ text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }}
+            .logo-container {{ text-align: center; margin-bottom: 10px; }}
+            .company-details {{ text-align: center; font-size: 14px; margin-bottom: 30px; }}
+            .quotation-details {{ margin-bottom: 20px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+            th, td {{ border: 1px solid black; padding: 8px; text-align: left; }}
+            .total-row {{ font-weight: bold; text-align: right; }}
+        </style>
+    </head>
+    <body>
+        <div class="logo-container">
+            <img src="https://superiordentalzm.com/static/img/logo.png" alt="Superior Dental Logo" width="150">
+        </div>
+        <div class="company-details">
+            <p><strong>Superior Dental</strong></p>
+            <p>Joseph Mwilwa Rd, Lusaka</p>
+            <p>Email: info@superiordental.com | Phone: 077 3793774</p>
+            <p>Website: www.superiordentalzm.com</p>
+        </div>
+        <div class="header">Patient Quotation</div>
+        <div class="quotation-details">
+            <p><strong>Patient:</strong> {escape(quotation.patient.first_name)} {escape(quotation.patient.last_name)}</p>
+            <p><strong>Email:</strong> {escape(quotation.patient.email)}</p>
+            <p><strong>Phone:</strong> {escape(quotation.patient.phone)}</p>
+            <p><strong>Quotation ID:</strong> #{quotation.id}</p>
+            <p><strong>Date:</strong> {quotation.updated_at.strftime('%Y-%m-%d')}</p>
+            <p><strong>Status:</strong> {escape(quotation.status.title())}</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+
+    # Populate the table with services
+    for item in quotation.quotationservice_set.all():
+        total_price = item.price_at_time * item.quantity
+        html_content += f"""
+            <tr>
+                <td>{escape(item.service.name)}</td>
+                <td>{item.quantity}</td>
+                <td>${item.price_at_time:.2f}</td>
+                <td>${total_price:.2f}</td>
+            </tr>
+        """
+
+    # Closing the table and adding total amount
+    html_content += f"""
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="total-row">Total Amount:</td>
+                    <td>${quotation.total_amount:.2f}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </body>
+    </html>
+    """
+
+    # Create a PDF response
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Quotation_{quotation.id}.pdf"'
+
+    # Convert HTML to PDF
+    pdf_status = pisa.CreatePDF(html_content, dest=response)
+    if pdf_status.err:
+        return HttpResponse('Error generating PDF', status=500)
+    
+    return response
+def quotation_list(request):
+    quotations = Quotation.objects.all()
+    return render(request, 'quotation_list.html', {'quotations': quotations})

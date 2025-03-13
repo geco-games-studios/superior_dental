@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'user_accounts',
     'appointment',
     'notifications',
+    'payments',
     
 ]
 

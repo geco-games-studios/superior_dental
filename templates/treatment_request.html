@@ -4,7 +4,7 @@
         <div class="row">
             <div class="col-md-12">
                 <h1 class="font-bold text-md">Diagnosis and Treatment</h1>
-                <form class="max-w-4xl mx-auto bg-slate-800 p-6 px-12 rounded-lg shadow-lg mt-10" action="#" method="POST">
+                <form class="max-w-4xl mx-auto bg-slate-800 p-6 px-12 rounded-lg shadow-lg mt-10" action="{% url 'treatment_diagnosis' %}" method="POST">
                     {% csrf_token %}
                 
                     <div class="mb-5">
@@ -35,27 +35,28 @@
                     <!-- Message Textarea -->
                     <div class="mb-5">
                         <label for="diagnosis" class="block mb-2 text-sm font-medium text-gray-300">Diagnosis</label>
-                        <textarea id="diagnosis" name="diagnosis" rows="4" class="block p-2.5 w-full text-sm text-gray-300 bg-gray-700 rounded-lg border border-gray-600 focus:ring-blue-500 focus:border-blue-500" placeholder="Write you diagnosis here..."></textarea>
+                        <textarea id="diagnosis" name="diagnosis_text" rows="4" class="block p-2.5 w-full text-sm text-gray-300 bg-gray-700 rounded-lg border border-gray-600 focus:ring-blue-500 focus:border-blue-500" placeholder="Write you diagnosis here..."></textarea>
                     </div>
 
                      <!-- Treament -->
                      <div class="mb-5">
                         <label for="treatment" class="block mb-2 text-sm font-medium text-gray-300">Treatment</label>
-                        <textarea id="treatment" name="treatment" rows="4" class="block p-2.5 w-full text-sm text-gray-300 bg-gray-700 rounded-lg border border-gray-600 focus:ring-blue-500 focus:border-blue-500" placeholder="Write your treatment here..."></textarea>
+                        <textarea id="treatment" name="treatment_text" rows="4" class="block p-2.5 w-full text-sm text-gray-300 bg-gray-700 rounded-lg border border-gray-600 focus:ring-blue-500 focus:border-blue-500" placeholder="Write your treatment here..."></textarea>
                     </div>
 
                     <!-- services-->
                     <div class="mb-5">
                         <label for="services" class="block mb-2 text-sm font-medium text-gray-300">Service</label>
-                        <select id="services" name="services" class="shadow-sm bg-gray-700 border border-gray-600 text-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" required>
-                            {% for service in services %}
-                            <option value="{{ service.id }}">
-                                {{ service.name|default:"Unnamed Service" }}
-                            </option>
-                            {% empty %}
-                                <option value="">No services available</option>
-                            {% endfor %}
-                        </select>
+                            <select id="services" name="services" class="shadow-sm bg-gray-700 border border-gray-600 text-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" required>
+                                {% for service in services %}
+                                <option value="{{ service.id }}">
+                                    {{ service.name|default:"Unnamed Service" }}
+                                
+                                </option>
+                                {% empty %}
+                                    <option value="">No services available</option>
+                                {% endfor %}
+                            </select>
                     </div>
 
                     <div class="mb-5">

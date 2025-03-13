@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .header { text-align: center; font-size: 20px; font-weight: bold; }
+        .details { margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: left; }
+        .total { font-weight: bold; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="header">Patient Quotation</div>
+
+    <div class="details">
+        <p><strong>Patient:</strong> {{ quotation.patient.first_name }} {{ quotation.patient.last_name }}</p>
+        <p><strong>Email:</strong> {{ quotation.patient.email }}</p>
+        <p><strong>Phone:</strong> {{ quotation.patient.phone }}</p>
+        <p><strong>Quotation ID:</strong> #{{ quotation.id }}</p>
+        <p><strong>Date:</strong> {{ quotation.date }}</p>
+        <p><strong>Status:</strong> {{ quotation.status|title }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Service</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in quotation.quotationservice_set.all %}
+            <tr>
+                <td>{{ item.service.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.price_at_time }}</td>
+                <td>${{ item.total_price }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" class="total">Total Amount:</td>
+                <td>${{ quotation.total_amount }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>

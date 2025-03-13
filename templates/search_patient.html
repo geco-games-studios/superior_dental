@@ -1,5 +1,5 @@
 {% extends 'base.html'%}
-  {% block title %} Patients {% endblock %}
+  {% block title %} Patients Search {% endblock %}
   {%load static %}
 
   {% block content %}
@@ -7,128 +7,16 @@
     <!--Page heading -->
     <div class="flex flex-row justify-between items-center">
         <div class="flex flex-row justify-start justify-between gap-8">
-            <h3 class="p-3 m-3 text-2xl font-semi-bold text-gray-700">Patients</h3>
-            {% if messages %}
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                {% for message in messages %}
-                Swal.fire({
-                    icon: '{{ message.tags }}',
-                    title: '{{ message.tags|title }}',
-                    text: '{{ message|escapejs }}',
-                    timer: 3000,
-                    timerProgressBar: true,
-                    showConfirmButton: false
-                });
-                {% endfor %}
-            });
-            </script>
-            {% endif %}
-
-
-            <div class="flex flex-row justify-between gap-4 p-3 m-3">
-                <button class="btn-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-
-                </button>
-
-                <button class="btn-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-                      </svg>
-
-                </button>
-
-            </div>
+            <h3 class="p-3 m-3 text-2xl font-semi-bold text-gray-700">Serach Results</h3>
 
         </div>
 
-        <div class="flex flex-row p-3 m-3 ">
-            <p> 107 Patinets </p>
-            <nav aria-label="Page navigation example" class="pl-3">
-                <ul class="flex items-center -space-x-px h-8 text-sm">
-                  <li>
-                    <a href="#" class="flex items-center justify-center px-3 h-8 ms-0 leading-tight text-gray-500 bg-white border border-e-0 border-gray-300 rounded-s-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
-                      <span class="sr-only">Previous</span>
-                      <svg class="w-2.5 h-2.5 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 1 1 5l4 4"/>
-                      </svg>
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">1</a>
-                  </li>
-                  
-                  <li>
-                    <a href="#" class="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 rounded-e-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
-                      <span class="sr-only">Next</span>
-                      <svg class="w-2.5 h-2.5 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
-                      </svg>
-                    </a>
-                  </li>
-                </ul>
-              </nav>
-
-        <div>
-
-        </div>
-
+    
     </div>
 
     </div>
-    <!--Table heading -->
-    <div class="flex flex-row p-3 m-3 mt-8 pt-8 justify-between item-center">
-      <div class="flex flex-row justify-between gap-8">
-        <button id="list">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-          </svg>
-
-          <button id="grid">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3" />
-            </svg>
-          </button>
-
-
-          <form class="max-w-md mx-auto px-3" action="{% url 'search_patient' %}" method="POST">
-            {% csrf_token %}
-            <label for="default-search" class="mb-2 text-sm font-medium text-black sr-only dark:text-black">Search</label>
-            <div class="relative text-black">
-                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
-                    </svg>
-                </div>
-                <input type="search" name="search_item" id="default-search" class="block w-full p-2 px-12 ps-10  text-sm text-black border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-300 dark:border-gray-300 dark:placeholder-gray-300 dark:text-black dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search for Patient" required />
-                <button type="submit" class="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-3  dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Search</button>
-            </div>
-          </form>
-
-
-          </button>
-
-        </button>
-
-      </div>
-
-      <div>
-
-        <button data-open-modal class="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" type="button">
-          + Add Patient
-        </button>
-
-      </div>
-
-
-    </div>
-    <!--End of table heading-->
 
     <!-- Patients Table-->
-
 
     <div class="px-4 sm:px-6 lg:px-8">
       <div class="mt-8 flow-root">
@@ -227,6 +115,13 @@
                   </td>
                 </tr>
                 {% endfor %}
+
+                <!-- if patient records not found -->
+                 {% if patients.count == 0 %}
+                <tr>
+                  <td colspan="9" class="text-center py-5 text-gray-500">No patient records found</td>
+                </tr>
+                {% endif %}
               </tbody>
               
             

@@ -29,5 +29,16 @@ urlpatterns = [
     # path('delete_appointment/', views.delete_appointment, name='delete_appointment'),
     path('treatment_diagnosis', views.treatment_diagnosis, name='treatment_diagnosis'),
     path('scheduled_appointment', views.scheduled_appointment_view, name='scheduled_appointment'),
-    
+    path('payment/<int:invoice_id>/create/', views.create_payment, name='create_payment'),
+    path('invoices_list/', views.invoice_list_view, name='invoices_list'),
+    path('invoice/<int:invoice_id>/details/', views.invoice_detail_view, name='invoice_details'),
+    path('create_quotation/', views.create_quotation, name='create_quotation'),
+    path('patient_invoice/<int:patient_id>/', views.patient_invoice, name='patient_invoice'),
+    path('create_inovice_list/', views.create_invoice_list_view, name='create_invoice_list'),
+    path('search_patient/', views.search_patient, name='search_patient'),
+    path('quotation/<int:quotation_id>/download/', views.download_quotation_pdf, name='download_quotation_pdf'),
+    path('quotation/<int:pk>/', views.quotation_detail, name='quotation_detail'),
+    path('quotation_list/', views.quotation_list, name='quotation_list'),
+     path('create_quotation_list/', views.create_quotation_list, name='create_quotation_list'),
+
 ]
