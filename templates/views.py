@@ -26,6 +26,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from user_accounts.forms import CustomUserCreationForm
 from django.contrib.auth import logout
 from payments.models import Payment, Invoice
+from datetime import datetime
 from django.db import transaction
 from django.contrib.auth.decorators import login_required, user_passes_test
 from payments.models import Invoice, Payment, InvoiceService, Quotation, QuotationService
@@ -511,9 +512,12 @@ def treatment_request(request, patient_id):
         'services': services,
     }
     return render(request, 'treatment_request.html', context)
-@login_required
+
+
+# Treament and Diagnosis@login_required
 def treatment_diagnosis(request):
     if request.method == 'POST':
+        # Extract POST data
         patient_id = request.POST.get('patient_id')
         service_id = request.POST.get('services')
         treatment_text = request.POST.get('treatment_text')
@@ -527,7 +531,7 @@ def treatment_diagnosis(request):
 
         # Validate date
         try:
-            date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             messages.error(request, 'Invalid date format. Use YYYY-MM-DD.')
             return render(request, 'patients.html')
@@ -539,13 +543,6 @@ def treatment_diagnosis(request):
             messages.error(request, 'Patient not found.')
             return render(request, 'patients.html')
 
-        # Check appointments
-        appointments = Appointment.objects.filter(patient=patient, status='Scheduled')
-        if not appointments.exists():
-            messages.error(request, 'No scheduled appointments found. Create one first.')
-            return render(request, 'patients.html')
-        appointment = appointments.first()
-
         # Get service
         try:
             service = Service.objects.get(id=service_id)
@@ -553,28 +550,43 @@ def treatment_diagnosis(request):
             messages.error(request, 'Service not found.')
             return render(request, 'patients.html')
 
-        # Create records
+        # Optional: Check for appointments
+        appointment = None
+        appointments = Appointment.objects.filter(patient=patient, status='Scheduled')
+        if appointments.exists():
+            appointment = appointments.first()
+
+        # Create treatment and diagnosis records
         try:
-            Treatment.objects.create(
+            treatment = Treatment.objects.create(
                 appointment=appointment,
                 service=service,
                 treatment_text=treatment_text,
                 date=date
             )
-            Diagnosis.objects.create(
+            print(f"Created Treatment: {treatment}")
+
+            diagnosis = Diagnosis.objects.create(
                 appointment=appointment,
                 service=service,
                 diagnosis_text=diagnosis_text,
                 date=date
             )
+            print(f"Created Diagnosis: {diagnosis}")
         except Exception as e:
             messages.error(request, f'Error saving data: {str(e)}')
-            return render(request, 'patient.html')
+            import traceback
+            traceback.print_exc()
+            return render(request, 'patients.html')
 
         messages.success(request, 'Treatment and diagnosis saved successfully.')
         return render(request, 'patients.html')
+
     else:
         return render(request, 'patients.html')
+    
+
+
 
 def update_patient_request(request, patient_id):
     patient = Patient.objects.get(id=patient_id)

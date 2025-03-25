@@ -51,17 +51,17 @@
 
 <!-- Pending Appointments Table -->
 <div id="table-pending" class="tab-content">
-  {% include 'appointment_table.html' with appointments=pending_appointments %}
+  {% include 'appointment_table.html' with appointments=pending_appointments table_type='pending' %}
 </div>
 
 <!-- Scheduled Appointments Table -->
 <div id="table-scheduled" class="tab-content hidden">
-  {% include 'appointment_table.html' with appointments=scheduled_appointments %}
+  {% include 'appointment_table.html' with appointments=scheduled_appointments table_type='scheduled' %}
 </div>
 
 <!-- Completed Appointments Table -->
 <div id="table-completed" class="tab-content hidden">
-  {% include 'appointment_table.html' with appointments=completed_appointments %}
+  {% include 'appointment_table.html' with appointments=completed_appointments table_type='completed' %}
 </div>
 
 <!-- Add appointment Modal -->
