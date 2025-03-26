@@ -39,6 +39,7 @@ urlpatterns = [
     path('quotation/<int:quotation_id>/download/', views.download_quotation_pdf, name='download_quotation_pdf'),
     path('quotation/<int:pk>/', views.quotation_detail, name='quotation_detail'),
     path('quotation_list/', views.quotation_list, name='quotation_list'),
-     path('create_quotation_list/', views.create_quotation_list, name='create_quotation_list'),
+    path('create_quotation_list/', views.create_quotation_list, name='create_quotation_list'),
+    path('exist_patient_appointment/<int:patient_id>/', views.exist_patient_appointment, name='exist_patient_appointment'),
 
 ]

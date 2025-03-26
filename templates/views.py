@@ -20,14 +20,15 @@ from asgiref.sync import async_to_sync
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from django.contrib.auth.models import BaseUserManager
+from weasyprint import HTML
 from django.contrib.auth.forms import UserCreationForm
+import traceback
 from django.http import JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from user_accounts.forms import CustomUserCreationForm
 from django.contrib.auth import logout
 from payments.models import Payment, Invoice
-from datetime import datetime
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from payments.models import Invoice, Payment, InvoiceService, Quotation, QuotationService
 from payments.forms import InvoiceForm, PaymentForm
@@ -71,8 +72,6 @@ class CustomUserManager(BaseUserManager):
             raise ValueError('Superuser must have is_superuser=True.')
 
         return self.create_user(username, email, password, **extra_fields)
-    
-
 
 
 def create_admin(request):
@@ -356,7 +355,7 @@ def walk_in_appointment(request):
             if ' ' not in full_name:
                 messages.error(request, "Full name must include both first and last names.")
                 return redirect('scheduled_appointment')
-            
+
             first_name, last_name = full_name.rsplit(' ', 1)
 
             # Validate service selection
@@ -513,11 +512,9 @@ def treatment_request(request, patient_id):
     }
     return render(request, 'treatment_request.html', context)
 
-
-# Treament and Diagnosis@login_required
+@login_required
 def treatment_diagnosis(request):
     if request.method == 'POST':
-        # Extract POST data
         patient_id = request.POST.get('patient_id')
         service_id = request.POST.get('services')
         treatment_text = request.POST.get('treatment_text')
@@ -531,7 +528,7 @@ def treatment_diagnosis(request):
 
         # Validate date
         try:
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             messages.error(request, 'Invalid date format. Use YYYY-MM-DD.')
             return render(request, 'patients.html')
@@ -542,6 +539,12 @@ def treatment_diagnosis(request):
         except Patient.DoesNotExist:
             messages.error(request, 'Patient not found.')
             return render(request, 'patients.html')
+# Check appointments
+        appointments = Appointment.objects.filter(patient=patient, status='Scheduled')
+        if not appointments.exists():
+            messages.error(request, 'No scheduled appointments found. Create one first.')
+            return render(request, 'patients.html')
+        appointment = appointments.first()
 
         # Get service
         try:
@@ -550,43 +553,30 @@ def treatment_diagnosis(request):
             messages.error(request, 'Service not found.')
             return render(request, 'patients.html')
 
-        # Optional: Check for appointments
-        appointment = None
-        appointments = Appointment.objects.filter(patient=patient, status='Scheduled')
-        if appointments.exists():
-            appointment = appointments.first()
-
-        # Create treatment and diagnosis records
+        # Create records
         try:
-            treatment = Treatment.objects.create(
+            Treatment.objects.create(
                 appointment=appointment,
                 service=service,
                 treatment_text=treatment_text,
                 date=date
             )
-            print(f"Created Treatment: {treatment}")
-
-            diagnosis = Diagnosis.objects.create(
+            Diagnosis.objects.create(
                 appointment=appointment,
                 service=service,
                 diagnosis_text=diagnosis_text,
                 date=date
             )
-            print(f"Created Diagnosis: {diagnosis}")
         except Exception as e:
             messages.error(request, f'Error saving data: {str(e)}')
-            import traceback
-            traceback.print_exc()
-            return render(request, 'patients.html')
+            return render(request, 'patient.html')
 
         messages.success(request, 'Treatment and diagnosis saved successfully.')
         return render(request, 'patients.html')
-
     else:
         return render(request, 'patients.html')
-    
 
-
+        
 
 def update_patient_request(request, patient_id):
     patient = Patient.objects.get(id=patient_id)
@@ -651,6 +641,7 @@ def search_patient(request):
             query |= Q(first_name__icontains=search_item)
             query |= Q(last_name__icontains=search_item)
             query |= Q(email__icontains=search_item)
+            query |= Q(nrc__icontains=search_item)
 
         # Filter patients based on the query
         if query:
@@ -774,7 +765,7 @@ def create_payment(request, invoice_id):
                 notes=notes,
                 status='completed'  # Assuming immediate completion for cash payments
             )
-            
+
             # Validate and save
             payment.full_clean()
             payment.save()
@@ -943,96 +934,108 @@ def quotation_detail(request, pk):
     return render(request, 'quotation_detail.html', {'quotation': quotation})
 
 
+
 def download_quotation_pdf(request, quotation_id):
     """
-    Generate and download a formal quotation PDF with Superior Dental branding.
+    Generate and download a quotation PDF that matches the provided image design.
     """
-    # Retrieve the quotation object
     quotation = get_object_or_404(Quotation, id=quotation_id)
 
-    # Construct the HTML content for the PDF
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            body {{ font-family: Arial, sans-serif; padding: 20px; }}
-            .header {{ text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }}
-            .logo-container {{ text-align: center; margin-bottom: 10px; }}
-            .company-details {{ text-align: center; font-size: 14px; margin-bottom: 30px; }}
-            .quotation-details {{ margin-bottom: 20px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-            th, td {{ border: 1px solid black; padding: 8px; text-align: left; }}
-            .total-row {{ font-weight: bold; text-align: right; }}
+            body {{ font-family: Arial, sans-serif; padding: 40px; }}
+            .header {{ display: flex; justify-content: space-between; align-items: center; }}
+            .header img {{ width: 100px; }}
+            .quotation-title {{ background-color: #00A9CE; color: white; font-size: 24px; padding: 10px; text-align: center; font-weight: bold; }}
+            .details {{ display: flex; justify-content: space-between; margin-top: 20px; }}
+            .details div {{ width: 45%; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th, td {{ border: 1px solid #ccc; padding: 10px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+            .total-section {{ text-align: right; margin-top: 20px; }}
+            .total-section p {{ margin: 5px 0; }}
+            .grand-total {{ background-color: #00A9CE; color: white; padding: 10px; font-size: 18px; font-weight: bold; text-align: right; }}
         </style>
     </head>
     <body>
-        <div class="logo-container">
-            <img src="https://superiordentalzm.com/static/img/logo.png" alt="Superior Dental Logo" width="150">
+        <div class="header">
+            <div>
+                <h2>Business Name</h2>
+            </div>
+            <div>
+                <p>Valid till: {quotation.valid_until.strftime('%Y-%m-%d')}</p>
+                <p>Total: ${quotation.total_amount:.2f}</p>
+            </div>
         </div>
-        <div class="company-details">
-            <p><strong>Superior Dental</strong></p>
-            <p>Joseph Mwilwa Rd, Lusaka</p>
-            <p>Email: info@superiordental.com | Phone: 077 3793774</p>
-            <p>Website: www.superiordentalzm.com</p>
-        </div>
-        <div class="header">Patient Quotation</div>
-        <div class="quotation-details">
-            <p><strong>Patient:</strong> {escape(quotation.patient.first_name)} {escape(quotation.patient.last_name)}</p>
-            <p><strong>Email:</strong> {escape(quotation.patient.email)}</p>
-            <p><strong>Phone:</strong> {escape(quotation.patient.phone)}</p>
-            <p><strong>Quotation ID:</strong> #{quotation.id}</p>
-            <p><strong>Date:</strong> {quotation.updated_at.strftime('%Y-%m-%d')}</p>
-            <p><strong>Status:</strong> {escape(quotation.status.title())}</p>
+        <div class="quotation-title">QUOTATION</div>
+        <div class="details">
+            <div>
+                <strong>Quote from:</strong>
+                <p>Company Name</p>
+                <p>Street Address, Zip Code</p>
+                <p>Phone Number</p>
+            </div>
+            <div>
+                <strong>Quote to:</strong>
+                <p>{escape(quotation.customer_name)}</p>
+                <p>{escape(quotation.customer_address)}</p>
+                <p>{escape(quotation.customer_phone)}</p>
+            </div>
         </div>
         <table>
             <thead>
                 <tr>
-                    <th>Service</th>
+                    <th>Item</th>
+                    <th>Rate</th>
                     <th>Quantity</th>
-                    <th>Price</th>
                     <th>Total</th>
                 </tr>
             </thead>
             <tbody>
     """
-
-    # Populate the table with services
-    for item in quotation.quotationservice_set.all():
-        total_price = item.price_at_time * item.quantity
+    
+    for item in quotation.items.all():
+        total_price = item.rate * item.quantity
         html_content += f"""
-            <tr>
-                <td>{escape(item.service.name)}</td>
-                <td>{item.quantity}</td>
-                <td>${item.price_at_time:.2f}</td>
-                <td>${total_price:.2f}</td>
-            </tr>
+                <tr>
+                    <td>{escape(item.name)}</td>
+                    <td>${item.rate:.2f}</td>
+                    <td>{item.quantity}</td>
+                    <td>${total_price:.2f}</td>
+                </tr>
         """
 
-    # Closing the table and adding total amount
     html_content += f"""
             </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="3" class="total-row">Total Amount:</td>
-                    <td>${quotation.total_amount:.2f}</td>
-                </tr>
-            </tfoot>
         </table>
+        <div class="total-section">
+            <p>Subtotal: ${quotation.subtotal:.2f}</p>
+            <p>Discount: ${quotation.discount:.2f}</p>
+            <p>Tax: ${quotation.tax:.2f}</p>
+        </div>
+        <div class="grand-total">
+            Total: ${quotation.total_amount:.2f}
+        </div>
     </body>
     </html>
     """
 
-    # Create a PDF response
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="Quotation_{quotation.id}.pdf"'
+    pdf_response = HttpResponse(content_type='application/pdf')
+    pdf_response['Content-Disposition'] = f'attachment; filename="Quotation_{quotation.id}.pdf"'
+    HTML(string=html_content).write_pdf(pdf_response)
+    return pdf_response
 
-    # Convert HTML to PDF
-    pdf_status = pisa.CreatePDF(html_content, dest=response)
-    if pdf_status.err:
-        return HttpResponse('Error generating PDF', status=500)
-    
     return response
 def quotation_list(request):
     quotations = Quotation.objects.all()
     return render(request, 'quotation_list.html', {'quotations': quotations})
+
+
+
+def exist_patient_appointment(request, patient_id):
+    patient = Patient.objects.get(id=patient_id)
+    services = Service.objects.filter(name__isnull=False, price__isnull=False)
+    return render(request, 'existing_patient_appointment.html', {'patient': patient, 'services': services})

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %} Appointments {% endblock %}
+{% block content %}
+
+        {% if patient %}
+        <div class="container mx-auto bg-slate-900 shadow-md rounded-lg overflow-hidden p-4">
+        <form class="p-4 md:p-5" method='POST' action="{% url 'walkin_appointment' %}">
+          {% csrf_token %}
+          <div class="mb-4">
+            <label class="block text-white">Full Name</label>
+            <input type="text" name="full_name" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" value="{{ patient.first_name }} {{ patient.last_name }}" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-white">Email</label>
+            <input type="email" name="email" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" value="{{ patient.email }}" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-white">Phone</label>
+            <input type="tel" name="phone" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" value="{{ patient.phone }}" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-white">Appointment Date</label>
+            <input type="date" name="appoint_date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-white">Appointment Time</label>
+            <input type="time" name="appoint_time" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-white">Service</label>
+            <select name="service" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                {% for service in services %}
+                    <option value="{{ service.id }}">
+                        {{ service.name|default:"Unnamed Service" }}
+                    </option>
+                {% empty %}
+                    <option value="">No services available</option>
+                {% endfor %}
+            </select>
+        </div>
+          <div class="mb-4">
+            <label class="block text-white">Notes</label>
+            <textarea name="notes" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="Your Notes"></textarea>
+          </div>
+          <div class="flex items-center justify-end">
+            <a href="{% url 'patients' %}" class="bg-red-800 text-white py-2 px-4 rounded-md mr-2" id="cancel-button">Cancel</a>
+            <button type="submit" class="bg-sky-800 text-white py-2 px-4 rounded-md">Submit</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+
+
+<!-- JavaScript for Tab Switching -->
+<script>
+  function switchTab(tabName) {
+    // Remove 'active' class from all tabs
+    document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active', 'bg-blue-500', 'text-white'));
+    document.querySelectorAll('.tab-button').forEach(button => button.classList.add('bg-gray-200', 'text-white'));
+
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+
+    // Activate the selected tab and show its content
+    document.getElementById(`tab-${tabName}`).classList.add('active', 'bg-blue-700', 'text-white');
+    document.getElementById(`table-${tabName}`).classList.remove('hidden');
+  }
+
+  // Initialize the first tab as active
+  document.addEventListener('DOMContentLoaded', () => {
+    switchTab('pending');
+  });
+
+  // Existing modal handling code remains unchanged
+  document.addEventListener('DOMContentLoaded', () => {
+    const assignDentistButtons = document.querySelectorAll('.openAssignDentistModal');
+    const assignDentistModal = document.getElementById('assignDentistModal');
+    const closeAssignDentistModal = document.getElementById('closeAssignDentistModal');
+    const appointmentIdInput = document.getElementById('appointmentId');
+    assignDentistButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const appointmentId = button.getAttribute('data-appointment-id');
+            appointmentIdInput.value = appointmentId;
+            assignDentistModal.showModal();
+        });
+    });
+    closeAssignDentistModal.addEventListener('click', () => {
+        assignDentistModal.close();
+    });
+    // Handle form submission with AJAX
+    document.getElementById('assignDentistForm').addEventListener('submit', (event) => {
+        event.preventDefault(); // Prevent default form submission
+        // Get form data
+        const form = event.target;
+        const formData = new FormData(form);
+        // Send AJAX request to the server
+        fetch(form.action, {
+            method: form.method,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest' // Optional: Indicates AJAX request
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Close modal and show success message
+                assignDentistModal.close();
+                Swal.fire({
+                    title: 'Success!',
+                    text: data.message || 'Dentist assigned successfully!',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                // Show error message
+                Swal.fire({
+                    title: 'Error!',
+                    text: data.message || 'Failed to assign dentist. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Error!',
+                text: 'An unexpected error occurred. Check your internet connection.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        });
+    });
+});
+function toggleMenu(menuId) {
+    const menu = document.getElementById(menuId);
+    menu.classList.toggle('hidden');
+}
+</script>
+{% endblock %}
