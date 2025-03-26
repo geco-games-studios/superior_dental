@@ -633,21 +633,21 @@ def update_patient(request):
 def search_patient(request):
     if request.method == 'POST':
         # Retrieve the search input
-        search_item = request.POST.get('search_item', '').strip()
+        search_services = request.POST.get('search_services', '').strip()
 
         # Build a dynamic query
         query = Q()
-        if search_item:
-            query |= Q(first_name__icontains=search_item)
-            query |= Q(last_name__icontains=search_item)
-            query |= Q(email__icontains=search_item)
-            query |= Q(nrc__icontains=search_item)
+        if search_services:
+            query |= Q(first_name__icontains=search_services)
+            query |= Q(last_name__icontains=search_services)
+            query |= Q(email__icontains=search_services)
+            query |= Q(nrc__icontains=search_services)
 
         # Filter patients based on the query
         if query:
             patients = Patient.objects.filter(query)
         else:
-            patients = Patient.objects.none()  # Return no results if search_item is empty
+            patients = Patient.objects.none()  # Return no results if search_services is empty
 
         # Render the results
         return render(request, 'search_patient.html', {'patients': patients})
@@ -934,7 +934,6 @@ def quotation_detail(request, pk):
     return render(request, 'quotation_detail.html', {'quotation': quotation})
 
 
-
 def download_quotation_pdf(request, quotation_id):
     """
     Generate and download a quotation PDF that matches the provided image design.
@@ -947,7 +946,7 @@ def download_quotation_pdf(request, quotation_id):
     <head>
         <style>
             body {{ font-family: Arial, sans-serif; padding: 40px; }}
-            .header {{ display: flex; justify-content: space-between; align-items: center; }}
+            .header {{ display: flex; justify-content: space-between; align-servicess: center; }}
             .header img {{ width: 100px; }}
             .quotation-title {{ background-color: #00A9CE; color: white; font-size: 24px; padding: 10px; text-align: center; font-weight: bold; }}
             .details {{ display: flex; justify-content: space-between; margin-top: 20px; }}
@@ -963,32 +962,35 @@ def download_quotation_pdf(request, quotation_id):
     <body>
         <div class="header">
             <div>
-                <h2>Business Name</h2>
+                <h2> Superior Dental Solutions Limited</h2>
             </div>
             <div>
-                <p>Valid till: {quotation.valid_until.strftime('%Y-%m-%d')}</p>
-                <p>Total: ${quotation.total_amount:.2f}</p>
+                <div>
+                <p>Valid till: {quotation.valid_until.strftime('%Y-%m-%d') if quotation.valid_until else 'Not specified'}</p>
+                <p>Total: K{quotation.total_amount:.2f}</p>
+
+                </div>
             </div>
         </div>
         <div class="quotation-title">QUOTATION</div>
         <div class="details">
             <div>
                 <strong>Quote from:</strong>
-                <p>Company Name</p>
+                <p>Superior Dental Solution Limited </p>
                 <p>Street Address, Zip Code</p>
                 <p>Phone Number</p>
             </div>
             <div>
                 <strong>Quote to:</strong>
-                <p>{escape(quotation.customer_name)}</p>
-                <p>{escape(quotation.customer_address)}</p>
-                <p>{escape(quotation.customer_phone)}</p>
+                <p>{escape(quotation.patient.first_name)}</p>
+                <p>{escape(quotation.patient.address)}</p>
+                <p>{escape(quotation.patient.phone)}</p>
             </div>
         </div>
         <table>
             <thead>
                 <tr>
-                    <th>Item</th>
+                    <th>services</th>
                     <th>Rate</th>
                     <th>Quantity</th>
                     <th>Total</th>
@@ -997,27 +999,17 @@ def download_quotation_pdf(request, quotation_id):
             <tbody>
     """
     
-    for item in quotation.items.all():
-        total_price = item.rate * item.quantity
-        html_content += f"""
-                <tr>
-                    <td>{escape(item.name)}</td>
-                    <td>${item.rate:.2f}</td>
-                    <td>{item.quantity}</td>
-                    <td>${total_price:.2f}</td>
-                </tr>
-        """
-
+  
     html_content += f"""
             </tbody>
         </table>
         <div class="total-section">
-            <p>Subtotal: ${quotation.subtotal:.2f}</p>
-            <p>Discount: ${quotation.discount:.2f}</p>
-            <p>Tax: ${quotation.tax:.2f}</p>
+            <p>Subtotal: K{quotation.total_amount:.2f}</p>
+            <p>Discount: K </p>
+            <p>Tax: K 0.00</p>
         </div>
         <div class="grand-total">
-            Total: ${quotation.total_amount:.2f}
+            Total: K{quotation.total_amount:.2f}
         </div>
     </body>
     </html>
@@ -1027,6 +1019,8 @@ def download_quotation_pdf(request, quotation_id):
     pdf_response['Content-Disposition'] = f'attachment; filename="Quotation_{quotation.id}.pdf"'
     HTML(string=html_content).write_pdf(pdf_response)
     return pdf_response
+
+
 
     return response
 def quotation_list(request):

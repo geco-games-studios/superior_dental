@@ -142,6 +142,7 @@ class Quotation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     notes = models.TextField(blank=True, null=True)
+    valid_until = models.DateField(null=True, blank=True)  # Optional field
    
     
     def calculate_total(self):
@@ -152,7 +153,6 @@ class Quotation(models.Model):
     def __str__(self):
         return f'{self.patient} - {self.total_amount}'
 
-    # ... other quotat
 
 class QuotationService(models.Model):
     quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE)
