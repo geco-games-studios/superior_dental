@@ -32,6 +32,11 @@ from django.db import transaction, IntegrityError
 from django.contrib.auth.decorators import login_required, user_passes_test
 from payments.models import Invoice, Payment, InvoiceService, Quotation, QuotationService
 from payments.forms import InvoiceForm, PaymentForm
+from django.http import HttpResponse
+from django.utils.html import escape
+from django.shortcuts import get_object_or_404
+from weasyprint import HTML
+from django.db.models import Sum
 
 
 
@@ -700,7 +705,6 @@ def invoice_list_view(request):
 @staff_required
 def invoice_detail_view(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
-    
     if request.method == 'POST':
         # Handle payment form submission
         payment_form = PaymentForm(request.POST, invoice=invoice)
@@ -883,7 +887,7 @@ def create_quotation(request):
         if not selected_service_ids:
             return JsonResponse({'error': 'No services selected'}, status=400)
 
-        if len(quantities) < len(selected_service_ids):
+        if len(quantities) != len(selected_service_ids):
             return JsonResponse({'error': 'Missing quantities for some services'}, status=400)
 
         patient = get_object_or_404(Patient, id=patient_id)
@@ -934,19 +938,23 @@ def quotation_detail(request, pk):
     return render(request, 'quotation_detail.html', {'quotation': quotation})
 
 
-def download_quotation_pdf(request, quotation_id):
-    """
-    Generate and download a quotation PDF that matches the provided image design.
-    """
-    quotation = get_object_or_404(Quotation, id=quotation_id)
 
+
+def download_quotation_pdf(request, quotation_id):
+    # Fetch the quotation object
+    quotation = get_object_or_404(Quotation, id=quotation_id)
+    
+    # Fetch related services for the quotation
+    quotation_services = QuotationService.objects.filter(quotation=quotation)
+
+    # Start building the HTML content
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <style>
             body {{ font-family: Arial, sans-serif; padding: 40px; }}
-            .header {{ display: flex; justify-content: space-between; align-servicess: center; }}
+            .header {{ display: flex; justify-content: space-between; align-items: center; }}
             .header img {{ width: 100px; }}
             .quotation-title {{ background-color: #00A9CE; color: white; font-size: 24px; padding: 10px; text-align: center; font-weight: bold; }}
             .details {{ display: flex; justify-content: space-between; margin-top: 20px; }}
@@ -962,27 +970,25 @@ def download_quotation_pdf(request, quotation_id):
     <body>
         <div class="header">
             <div>
-                <h2> Superior Dental Solutions Limited</h2>
+                <h2>Superior Dental Solutions Limited</h2>
             </div>
+
             <div>
-                <div>
                 <p>Valid till: {quotation.valid_until.strftime('%Y-%m-%d') if quotation.valid_until else 'Not specified'}</p>
                 <p>Total: K{quotation.total_amount:.2f}</p>
-
-                </div>
             </div>
         </div>
         <div class="quotation-title">QUOTATION</div>
         <div class="details">
             <div>
                 <strong>Quote from:</strong>
-                <p>Superior Dental Solution Limited </p>
+                <p>Superior Dental Solution Limited</p>
                 <p>Street Address, Zip Code</p>
                 <p>Phone Number</p>
             </div>
             <div>
                 <strong>Quote to:</strong>
-                <p>{escape(quotation.patient.first_name)}</p>
+                <p>{escape(quotation.patient.first_name)} {escape(quotation.patient.last_name)}</p>
                 <p>{escape(quotation.patient.address)}</p>
                 <p>{escape(quotation.patient.phone)}</p>
             </div>
@@ -990,7 +996,7 @@ def download_quotation_pdf(request, quotation_id):
         <table>
             <thead>
                 <tr>
-                    <th>services</th>
+                    <th>Service</th>
                     <th>Rate</th>
                     <th>Quantity</th>
                     <th>Total</th>
@@ -998,27 +1004,43 @@ def download_quotation_pdf(request, quotation_id):
             </thead>
             <tbody>
     """
-    
-  
-    html_content += f"""
+
+    # Populate the table with services
+    for service in quotation_services:
+        html_content += f"""
+                <tr>
+                    <td>{escape(service.service.name)}</td>
+                    <td>{service.quantity}</td>
+                    <td>K{quotation.total_amount:.2f}</td>
+                </tr>
+        """
+
+    html_content += """
             </tbody>
         </table>
         <div class="total-section">
-            <p>Subtotal: K{quotation.total_amount:.2f}</p>
-            <p>Discount: K </p>
-            <p>Tax: K 0.00</p>
+            <p>Subtotal: K{:.2f}</p>
+            <p>Discount: K{:.2f}</p>
+            <p>Tax: K{:.2f}</p>
         </div>
         <div class="grand-total">
-            Total: K{quotation.total_amount:.2f}
+            Total: K{:.2f}
         </div>
     </body>
     </html>
-    """
+    """.format(
+        quotation.total_amount,  # Subtotal
+        0.00,  # Discount
+        0.00,  # Tax
+        quotation.total_amount  # Total
+    )
 
+    # Generate the PDF response
     pdf_response = HttpResponse(content_type='application/pdf')
     pdf_response['Content-Disposition'] = f'attachment; filename="Quotation_{quotation.id}.pdf"'
     HTML(string=html_content).write_pdf(pdf_response)
     return pdf_response
+
 
 
 
@@ -1033,3 +1055,362 @@ def exist_patient_appointment(request, patient_id):
     patient = Patient.objects.get(id=patient_id)
     services = Service.objects.filter(name__isnull=False, price__isnull=False)
     return render(request, 'existing_patient_appointment.html', {'patient': patient, 'services': services})
+
+
+def turn_to_invoice(request, quotation_id):
+    # Fetch the Quotation and related QuotationService records
+    quotation = get_object_or_404(Quotation, id=quotation_id)
+    quotation_services = QuotationService.objects.filter(quotation=quotation)
+
+    # Extract relevant data
+    patient = quotation.patient
+    total_amount = quotation.total_amount
+
+    # Create the Invoice object (exclude the many-to-many field 'services')
+    invoice = Invoice.objects.create(
+        patient=patient,
+        total_amount=total_amount,
+        status='issued',
+        # created_by=request.user
+    )
+
+    # Assign services to the many-to-many field after saving the invoice
+    services = [qs.service for qs in quotation_services]
+    invoice.services.set(services)
+
+    try:
+        # Create InvoiceService records for each QuotationService
+        for qs in quotation_services:
+            # Ensure price_at_time is not None
+            price_at_time = qs.price_at_time if qs.price_at_time is not None else 0.0
+            
+            InvoiceService.objects.create(
+                invoice=invoice,
+                service=qs.service,
+                price_at_time=price_at_time,
+                quantity=qs.quantity
+            )
+    except IntegrityError as e:
+        # Handle any integrity errors (e.g., log the error and notify the user)
+        messages.error(request, f"Failed to create InvoiceService records: {str(e)}")
+        return redirect('quotation_list')
+
+    # Add a success message
+    messages.success(request, "Invoice and InvoiceService records created successfully.")
+
+    # Redirect to the invoice detail page
+    return redirect('invoice_details_view', invoice_id=invoice.pk)
+
+
+def invoice_details(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    services = InvoiceService.objects.filter(invoice=invoice)
+    
+    # Calculate total amount
+    total_amount = sum(service.price_at_time * service.quantity for service in services)
+
+    # Render the invoice details template
+    return render(request, 'invoice_details.html', {
+        'invoice': invoice,
+        'services': services,
+        'total_amount': total_amount
+    })
+
+
+def invoice_detail_view(request, invoice_id):
+    # Fetch the invoice using the provided invoice_id
+    invoice = get_object_or_404(Invoice, pk=invoice_id)
+    
+    # Render the invoice details page
+    return render(request, 'invoice_detail.html', {'invoice': invoice})
+
+
+
+def invoice_pdf(request, invoice_id):
+    # Fetch the invoice object
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    
+    # Fetch related services for the invoice
+    invoice_services = InvoiceService.objects.filter(invoice=invoice)
+
+    # Start building the HTML content
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; padding: 40px; }}
+            .header {{ display: flex; justify-content: space-between; align-items: center; }}
+            .header img {{ width: 100px; }}
+            .invoice-title {{ background-color: #00A9CE; color: white; font-size: 24px; padding: 10px; text-align: center; font-weight: bold; }}
+            .details {{ display: flex; justify-content: space-between; margin-top: 20px; }}
+            .details div {{ width: 45%; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th, td {{ border: 1px solid #ccc; padding: 10px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+            .total-section {{ text-align: right; margin-top: 20px; }}
+            .total-section p {{ margin: 5px 0; }}
+            .grand-total {{ background-color: #00A9CE; color: white; padding: 10px; font-size: 18px; font-weight: bold; text-align: right; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <h2>Superior Dental Solutions Limited</h2>
+            </div>
+
+            <div>
+                <p>Invoice Number: {invoice.id}</p>
+                <p>Total Amount Due:</p>
+                <p>K{invoice.total_amount:.2f}</p>
+                <p>Due Date:</p>
+                <p>{invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else 'Not specified'}</p>
+            </div>
+        </div>
+        <div class="invoice-title">INVOICE</div>
+        <div class="details">
+            <div>
+                <strong>Invoice from:</strong>
+                <p>Superior Dental Solution Limited</p>
+                <p>Street Address, Zip Code</p>
+                <p>Phone Number</p>
+            </div>
+            <div>
+                <strong>Invoice to:</strong>
+                <p>{escape(invoice.patient.first_name)} {escape(invoice.patient.last_name)}</p>
+                <p>{escape(invoice.patient.address)}</p>
+                <p>{escape(invoice.patient.phone)}</p>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Rate</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    # Populate the table with services
+    for service in invoice_services:
+        html_content += f"""
+                <tr>
+                    <td>{escape(service.service.name)}</td>
+                    <td>{service.price_at_time}</td>
+                    <td>{service.quantity}</td>
+                    <td>K{service.price_at_time * service.quantity:.2f}</td>
+                </tr>
+        """
+    html_content += """
+            </tbody>
+        </table>
+        <div class="total-section">
+            <p>Subtotal: K{:.2f}</p>
+            <p>Discount: K{:.2f}</p>
+            <p>Tax: K{:.2f}</p>
+        </div>
+        <div class="grand-total">
+            Total: K{:.2f}
+        </div>
+    </body>
+    </html>
+    """.format(
+        invoice.total_amount,  # Subtotal
+        0.00,  # Discount
+        0.00,  # Tax
+        invoice.total_amount  # Total
+    )
+    # Generate the PDF response
+    pdf_response = HttpResponse(content_type='application/pdf')
+    pdf_response['Content-Disposition'] = f'attachment; filename="Invoice_{invoice.id}.pdf"'
+    HTML(string=html_content).write_pdf(pdf_response)
+    return pdf_response
+
+
+def invoice_list_view(request):
+    invoices = Invoice.objects.all()
+    return render(request, 'invoice_list.html', {
+        'invoices': invoices
+    })
+
+def full_payment_form(request):
+    return render(request, 'full_payment_form.html')
+
+def make_full_payment(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    return render(request, 'full_payment_form.html', {
+        'invoice': invoice
+    })
+
+
+
+def full_payment(request):
+    if request.method == 'POST':
+        invoice_id = request.POST.get('invoice_id')
+        patient_id = request.POST.get('patient_id')
+        balance = request.POST.get('balance')
+        amount = request.POST.get('amount')
+        payment_method = request.POST.get('payment_method')
+        transaction_id = request.POST.get('transaction_id')
+        notes = request.POST.get('notes')
+
+        #print out all the fiels
+        print(f"Invoice ID: {invoice_id}")
+        print(f"Balance: {balance}")
+        print(f"Amount: {amount}")
+        print(f"Payment Method: {payment_method}")
+        print(f"Transaction ID: {transaction_id}")
+        print(f"Notes: {notes}")
+
+        # Validate the transaction ID if payment method is not cash
+        if payment_method != 'Cash' and not transaction_id:
+            messages.error(request, 'Transaction ID is required for non-cash payments.')
+            return redirect('full_payment_form')
+
+        # Validate required fields
+        if not all([invoice_id, amount, payment_method, patient_id]):
+            messages.error(request, 'Missing required fields.')
+            return redirect('full_payment_form')
+        elif float(amount) < float(balance):
+            messages.error(request, 'Payment amount is less then the balance.')
+            return redirect('full_payment_form')
+
+        # Fetch the invoice
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+
+        # Create the payment
+        payment = Payment(
+            invoice=invoice,
+            patient=invoice.patient,
+            amount=amount,
+            payment_method=payment_method,
+            transaction_id=transaction_id,
+            notes=notes,
+            status='completed',
+            #request.user  # Assuming you want to track who processed the payment
+            processed_by=request.user
+
+        )
+        payment.save()
+
+        # Update the invoice status
+        invoice.status = 'paid'
+        invoice.save()
+
+        messages.success(request, 'Payment made successfully!')
+        return redirect('invoice_list')
+
+def partial_payment_form(request):
+   return(request, 'partial_payment_form.html')
+
+@login_required
+def make_partial_payment(request, invoice_id):
+    # Fetch the invoice
+    invoice = get_object_or_404(Invoice, pk=invoice_id)
+
+    # Calculate the total payments made for the invoice
+    total_payments = Payment.objects.filter(invoice=invoice).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Calculate the remaining balance
+    remaining_balance = invoice.total_amount - total_payments
+
+    if remaining_balance <= 0:
+        messages.error(request, 'Invoice is already fully paid.')
+        #Change the status to paid
+        invoice.status = 'paid'
+        invoice.save()
+        # Redirect to the invoice list or detail page
+        return redirect('invoice_list')
+
+    # Render the partial payment page with the remaining balance
+    return render(request, 'partial_payment_form.html', {
+        'invoice': invoice,
+        'remaining_balance': remaining_balance
+    })
+
+@login_required
+def partial_payment(request):
+    if request.method == 'POST':
+        # Extract form data
+        invoice_id = request.POST.get('invoice_id')
+        amount = request.POST.get('amount')
+        payment_method = request.POST.get('payment_method')
+        transaction_id = request.POST.get('transaction_id')
+        notes = request.POST.get('notes')
+
+        # Validate required fields
+        if not all([invoice_id, amount, payment_method]):
+            messages.error(request, 'Invoice ID, amount, and payment method are required.')
+            return redirect('partial_payment_form')  # Ensure this URL exists in your project
+
+        try:
+            # Convert amount to Decimal
+            amount = Decimal(amount)
+            if amount <= 0:
+                raise ValueError("Amount must be greater than zero.")
+        except (InvalidOperation, ValueError) as e:
+            messages.error(request, f'Invalid amount: {str(e)}')
+            return redirect('partial_payment_form')
+
+        # Validate payment method
+        valid_payment_methods = ['Cash', 'Card', 'Mobile Money']
+        if payment_method not in valid_payment_methods:
+            messages.error(request, 'Invalid payment method.')
+            return redirect('partial_payment_form')
+
+        # Validate transaction ID for non-cash payments
+        if payment_method != 'Cash' and not transaction_id:
+            messages.error(request, 'Transaction ID is required for non-cash payments.')
+            return redirect('partial_payment_form')
+
+        # Fetch the invoice
+        try:
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+        except Exception as e:
+            messages.error(request, f'Error fetching invoice: {str(e)}')
+            return redirect('partial_payment_form')
+
+        # Calculate remaining balance
+        total_payments = invoice.get_total_payments()
+        remaining_balance = invoice.total_amount - total_payments
+
+        # Ensure the payment amount does not exceed the remaining balance
+        if amount > remaining_balance:
+            messages.error(request, 'Payment amount exceeds the remaining balance.')
+            return redirect('partial_payment_form')
+
+        # Create the partial payment
+        try:
+            partial_payment = Payment.objects.create(
+                invoice=invoice,
+                patient=invoice.patient,
+                amount=amount,
+                payment_method=payment_method,
+                transaction_id=transaction_id,
+                notes=notes,
+                status='partial',
+                processed_by=request.user
+            )
+        except Exception as e:
+            messages.error(request, f'Error creating payment: {str(e)}')
+            return redirect('partial_payment_form')
+
+        # Update the invoice status
+        total_payments_after_payment = total_payments + amount
+        remaining_balance_after_payment = invoice.total_amount - total_payments_after_payment
+
+        if remaining_balance_after_payment <= 0:
+            invoice.status = 'paid'
+        else:
+            invoice.status = 'partially paid'
+
+        invoice.save()
+
+        # Success message
+        messages.success(request, 'Partial payment made successfully!')
+        return redirect('invoice_list')
+
+    # Handle GET requests (if applicable)
+    return redirect('partial_payment_form')
