@@ -3,12 +3,14 @@ from patient.models import Patient
 from user_accounts.models import Dentist  # Correctly import the Dentist model
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from user_accounts.models import CustomUser 
+from django.utils import timezone
+
 
 
 class Appointment(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     dentist = models.ForeignKey(Dentist, on_delete=models.CASCADE, blank=True, null=True)  # Correctly reference the Dentist model
-    date_time = models.DateTimeField()
+    date_time = models.DateTimeField(default=timezone.now)
     status_choices = [('Pending', 'Pending'), ('Scheduled', 'Scheduled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')]
     status = models.CharField(max_length=20, choices=status_choices, default='Pending')
     notes = models.TextField(blank=True, null=True)

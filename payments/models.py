@@ -8,6 +8,7 @@ from patient.models import Patient
 from django.conf import settings
 from appointment.models import Appointment, Service
 import uuid
+from django.db.models import Sum
 
 class Invoice(models.Model):
     STATUS_CHOICES = [
@@ -25,9 +26,8 @@ class Invoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def get_total_payments(self):
-        return self.payment_set.filter(status='completed').aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal('0.00')
+        """Calculate the total payments made for this invoice."""
+        return self.payments.filter(status='completed').aggregate(total=Sum('amount'))['total'] or 0
     
     def calculate_total(self):
         return self.invoiceservice_set.aggregate(
@@ -48,7 +48,7 @@ class InvoiceService(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    price_at_time = models.DecimalField(max_digits=10, decimal_places=2)
+    price_at_time = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -70,7 +70,11 @@ class Payment(models.Model):
     ]
 
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE)
+    invoice = models.ForeignKey(
+        Invoice,
+        on_delete=models.CASCADE,
+        related_name='payments'  # Custom related name
+    )
     appointment = models.ForeignKey(Appointment, on_delete=models.SET_NULL, null=True, blank=True)
     processed_by = models.ForeignKey(User, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])

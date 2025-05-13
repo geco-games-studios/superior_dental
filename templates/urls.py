@@ -48,5 +48,26 @@ urlpatterns = [
     path('partial_payment_form/', views.partial_payment_form, name='partial_payment_form'),
     path('make_partial_payment/<int:invoice_id>/', views.make_partial_payment, name='make_partial_payment'),
     path('partial_payment', views.partial_payment, name='partial_payment'),
-
+    path('calendar/', views.calendar_view, name='calendar'),
+    path('', views.inventory_dashboard, name='dashboard'),
+    path('items/', views.item_list, name='item_list'),
+    path('items/<int:pk>/', views.item_detail, name='item_detail'),
+    path('items/new/', views.item_create, name='item_create'),
+    path('items/<int:pk>/update/', views.item_update, name='item_update'),
+    path('items/<int:pk>/delete/', views.item_delete, name='item_delete'),
+    path('items/<int:pk>/transactions/', views.item_transactions, name='item_transactions'),
+    path('items/<int:pk>/transactions/new/', views.transaction_create, name='transaction_create'),
+    path('categories/', views.category_list, name='category_list'),
+    path('suppliers/', views.supplier_list, name='supplier_list'),
+    # Categories
+    path('categories/', views.category_list, name='category_list'),
+    path('categories/new/', views.category_create, name='category_create'),
+    path('categories/<int:pk>/edit/', views.category_update, name='category_update'),
+    path('categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
+    # Suppliers
+    path('suppliers/', views.supplier_list, name='supplier_list'),
+    path('suppliers/new/', views.supplier_create, name='supplier_create'),
+    path('suppliers/<int:pk>/edit/', views.supplier_update, name='supplier_update'),
+    path('suppliers/<int:pk>/delete/', views.supplier_delete, name='supplier_delete'),
+    path('items/<int:pk>/transactions/new/', views.transaction_create, name='transaction_create'),
 ]

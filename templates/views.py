@@ -37,6 +37,11 @@ from django.utils.html import escape
 from django.shortcuts import get_object_or_404
 from weasyprint import HTML
 from django.db.models import Sum
+import calendar
+from inventory.models import InventoryItem, InventoryTransaction, Supplier, ItemCategory
+from .forms import InventoryItemForm, TransactionForm, ItemForm, SupplierForm, CategoryForm
+
+
 
 
 
@@ -1343,7 +1348,7 @@ def partial_payment(request):
         # Validate required fields
         if not all([invoice_id, amount, payment_method]):
             messages.error(request, 'Invoice ID, amount, and payment method are required.')
-            return redirect('partial_payment_form')  # Ensure this URL exists in your project
+            return redirect('partial_payment_form')
 
         try:
             # Convert amount to Decimal
@@ -1414,3 +1419,306 @@ def partial_payment(request):
 
     # Handle GET requests (if applicable)
     return redirect('partial_payment_form')
+
+
+
+def calendar_view(request):
+    today = timezone.now()
+
+    # Fetch appointments for current month
+    appointments = Appointment.objects.filter(
+        date_time__year=today.year,
+        date_time__month=today.month
+    ).order_by('date_time')
+
+    # Group appointments by day using defaultdict
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for appt in appointments:
+        grouped[appt.date_time.day].append(appt)
+
+    # Generate all days in the current month
+    _, days_in_month = calendar.monthrange(today.year, today.month)
+    month_days = list(range(1, days_in_month + 1))
+
+    # Create a list of dicts: {'day': 5, 'appointments': [...]}
+    days_with_appointments = [
+        {
+            'day': day,
+            'appointments': grouped.get(day, [])
+        }
+        for day in month_days
+    ]
+
+    # Pass weekday labels and other data
+    week_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    return render(request, 'calendar.html', {
+        'today': today,
+        'days_with_appointments': days_with_appointments,
+        'week_days': week_days,
+        'current_month': today.strftime("%B %Y")
+    })
+
+
+
+@login_required
+def inventory_dashboard(request):
+    low_stock_items = InventoryItem.objects.filter(quantity__lte=models.F('reorder_level'))
+    recent_transactions = InventoryTransaction.objects.all().order_by('-timestamp')[:5]
+    
+    context = {
+        'low_stock_items': low_stock_items,
+        'recent_transactions': recent_transactions
+    }
+    return render(request, 'inventory_dashboard.html', context)
+
+@login_required
+def item_list(request):
+    items = InventoryItem.objects.all()
+    return render(request, 'item_list.html', {'items': items})
+
+@login_required
+def item_detail(request, pk):
+    item = get_object_or_404(InventoryItem, pk=pk)
+    transactions = item.transactions.all().order_by('-timestamp')[:10]
+    return render(request, 'item_detail.html', {
+        'item': item,
+        'transactions': transactions
+    })
+
+@login_required
+def item_create(request):
+    if request.method == 'POST':
+        form = ItemForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('item_list')
+    else:
+        form = ItemForm()
+    return render(request, 'forms.html', {'form': form, 'title': 'Add New Item'})
+
+
+
+
+@login_required
+def item_update(request, pk):
+    item = get_object_or_404(InventoryItem, pk=pk)
+    
+    if request.method == 'POST':
+        form = InventoryItemForm(request.POST, instance=item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Item '{form.cleaned_data['name']}' updated successfully")
+            return redirect('item_detail', pk=item.pk)
+    else:
+        form = InventoryItemForm(instance=item)
+    
+    return render(request, 'item_form.html', {
+        'form': form, 
+        'item': item,
+        'title': f'Edit {item.name}'
+    })
+
+@login_required
+def item_delete(request, pk):
+    item = get_object_or_404(InventoryItem, pk=pk)
+    
+    if request.method == 'POST':
+        item_name = item.name
+        item.delete()
+        messages.success(request, f"Item '{item_name}' has been deleted")
+        return redirect('item_list')
+    
+    return render(request, 'item_confirm_delete.html', {
+        'item': item,
+        'title': f'Delete {item.name}'
+    })
+
+@login_required
+def item_transactions(request, pk):
+    item = get_object_or_404(InventoryItem, pk=pk)
+    transactions = item.transactions.all().order_by('-timestamp')
+    
+    return render(request, 'item_transactions.html', {
+        'item': item,
+        'transactions': transactions,
+        'title': f'{item.name} - Transactions'
+    })
+
+@login_required
+def transaction_create(request, pk):
+    item = get_object_or_404(InventoryItem, pk=pk)
+    
+    if request.method == 'POST':
+        form = TransactionForm(request.POST, item=item)
+        if form.is_valid():
+            transaction = form.save(commit=False)
+            transaction.item = item
+            transaction.user = request.user
+            
+            try:
+                # Handle transaction logic
+                if transaction.transaction_type == 'OUT' and transaction.quantity > item.quantity:
+                    messages.error(request, "Cannot remove more items than available in stock")
+                    return render(request, 'transaction_form.html', {
+                        'form': form,
+                        'item': item,
+                        'title': 'Add Transaction'
+                    })
+                
+                transaction.save()
+                
+                # Update item quantity
+                if transaction.transaction_type == 'IN':
+                    item.quantity += transaction.quantity
+                elif transaction.transaction_type == 'OUT':
+                    item.quantity -= transaction.quantity
+                    
+                item.save(update_fields=['quantity', 'last_updated'])
+                
+                messages.success(
+                    request, 
+                    f"{transaction.get_transaction_type_display()} of {transaction.quantity} units recorded"
+                )
+                
+                return redirect('inventory:item_detail', pk=item.pk)
+                
+            except Exception as e:
+                messages.error(request, f"Error recording transaction: {str(e)}")
+                return render(request, 'transaction_form.html', {
+                    'form': form,
+                    'item': item,
+                    'title': 'Add Transaction'
+                })
+    else:
+        form = TransactionForm(item=item)
+    
+    return render(request, 'transaction_form.html', {
+        'form': form,
+        'item': item,
+        'title': 'Add Transaction'
+    })
+
+
+    return render(request, 'supplier_form.html', {
+        'form': form,
+        'title': 'Add New Supplier'
+    })
+
+
+@login_required
+def category_list(request):
+    return render(request, 'item_category_list.html', {
+        'categories': ItemCategory.objects.all().order_by('name'),
+        'title': 'Item Categories'
+    })
+
+@login_required
+def category_create(request):
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Category '{form.cleaned_data['name']}' created successfully")
+            return redirect('category_list')
+    else:
+        form = CategoryForm()
+    
+    return render(request, 'supplier_category_form.html', {
+        'form': form,
+        'title': 'Add New Category'
+    })
+
+@login_required
+def category_update(request, pk):
+    category = get_object_or_404(ItemCategory, pk=pk)
+    
+    if request.method == 'POST':
+        form = CategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Category '{form.cleaned_data['name']}' updated successfully")
+            return redirect('category_list')
+    else:
+        form = CategoryForm(instance=category)
+    
+    return render(request, 'supplier_category_form.html', {
+        'form': form,
+        'title': f'Edit {category.name}',
+        'category': category
+    })
+
+@login_required
+def category_delete(request, pk):
+    category = get_object_or_404(ItemCategory, pk=pk)
+    
+    if request.method == 'POST':
+        category_name = category.name
+        category.delete()
+        messages.success(request, f"Category '{category_name}' deleted successfully")
+        return redirect('category_list')
+    
+    return render(request, 'supplier_category_delete.html', {
+        'object': category,
+        'title': f'Delete {category.name}',
+        'type': 'category'
+    })
+
+@login_required
+def supplier_list(request):
+    return render(request, 'supplier_list.html', {
+        'suppliers': Supplier.objects.all().order_by('name'),
+        'title': 'Suppliers'
+    })
+
+@login_required
+def supplier_create(request):
+    if request.method == 'POST':
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Supplier '{form.cleaned_data['name']}' created successfully")
+            return redirect('supplier_list')
+    else:
+        form = SupplierForm()
+    
+    return render(request, 'supplier_category_form.html', {
+        'form': form,
+        'title': 'Add New Supplier'
+    })
+
+@login_required
+def supplier_update(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    
+    if request.method == 'POST':
+        form = SupplierForm(request.POST, instance=supplier)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Supplier '{form.cleaned_data['name']}' updated successfully")
+            return redirect('supplier_list')
+    else:
+        form = SupplierForm(instance=supplier)
+    
+    return render(request, 'supplier_category_form.html', {
+        'form': form,
+        'title': f'Edit {supplier.name}',
+        'supplier': supplier
+    })
+
+@login_required
+def supplier_delete(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    
+    if request.method == 'POST':
+        supplier_name = supplier.name
+        supplier.delete()
+        messages.success(request, f"Supplier '{supplier_name}' deleted successfully")
+        return redirect('supplier_list')
+    
+    return render(request, 'supplier_category_delete.html', {
+        'object': supplier,
+        'title': f'Delete {supplier.name}',
+        'type': 'supplier'
+    })
