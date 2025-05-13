@@ -23,7 +23,7 @@ def item_list(request):
 def item_detail(request, pk):
     item = get_object_or_404(InventoryItem, pk=pk)
     transactions = item.transactions.all().order_by('-timestamp')[:10]
-    return render(request, '/templates/item_detail.html', {
+    return render(request, 'templates/item_detail.html', {
         'item': item,
         'transactions': transactions
     })
