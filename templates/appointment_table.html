@@ -100,7 +100,7 @@
           </td>
           {% elif table_type == 'completed' %}
 
-          <td  class="whitespace-nowrap px-3 py-5 text-sm flex flex-row gap-1">
+          {% comment %} <td  class="whitespace-nowrap px-3 py-5 text-sm flex flex-row gap-1">
 
             <a href="{% url 'update_patient_request' appointment.id %}">
                  
@@ -113,7 +113,7 @@
             </a>
          
 
-          </td>
+          </td> {% endcomment %}
           {% endif %}
 
 

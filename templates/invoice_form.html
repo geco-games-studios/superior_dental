@@ -59,9 +59,16 @@
                     <input type="date" id="date" name="date" class="shadow-sm bg-gray-700 border border-gray-600 text-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" required />
                 </div>
                 
-                <div class="mb-5">
+               <div class="mb-5">
                     <label for="quantities" class="block mb-2 text-sm font-medium text-gray-300">Quantities</label>
-                    <input type="text" id="quantities" name="quantities" class="shadow-sm bg-gray-700 border border-gray-600 text-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" required>
+                    <input 
+                        type="number" 
+                        id="quantities" 
+                        name="quantities" 
+                        min="1"
+                        class="shadow-sm bg-gray-700 border border-gray-600 text-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" 
+                        required
+                    >
                 </div>
                 
 

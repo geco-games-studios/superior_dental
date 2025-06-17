@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'appointment',
     'notifications',
     'payments',
-    'inventory'
+    'inventory',
     
 ]
 
@@ -89,7 +89,7 @@ AUTH_USER_MODEL = 'user_accounts.CustomUser'
 
 LOGIN_URL = '/login/'
 
-
+APPEND_SLASH = True
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 

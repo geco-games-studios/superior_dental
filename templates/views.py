@@ -13,6 +13,7 @@ from user_accounts.forms import CustomUserCreationForm, DentistForm, StaffForm
 from user_accounts.models import CustomUser, Dentist, Staff
 from django.views.decorators.csrf import csrf_protect
 from django.http import JsonResponse, Http404, HttpResponseBadRequest, HttpResponse
+from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from channels.layers import get_channel_layer
@@ -25,6 +26,7 @@ from django.contrib.auth.forms import UserCreationForm
 import traceback
 from django.http import JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
+import uuid
 from user_accounts.forms import CustomUserCreationForm
 from django.contrib.auth import logout
 from payments.models import Payment, Invoice
@@ -39,7 +41,9 @@ from weasyprint import HTML
 from django.db.models import Sum
 import calendar
 from inventory.models import InventoryItem, InventoryTransaction, Supplier, ItemCategory
+from payments.models import Receipt,  ReceiptItem  # Import the Receipt model
 from .forms import InventoryItemForm, TransactionForm, ItemForm, SupplierForm, CategoryForm
+
 
 
 
@@ -56,7 +60,7 @@ def is_admin(user):
 @user_passes_test(is_admin)
 def admin_dashboard(request):
     users = CustomUser.objects.all()
-    return render(request, 'admin_dashboard.html', {'users': users})
+    return render(request, 'dashboard.html', {'users': users})
 
 
 
@@ -157,10 +161,11 @@ def Dashboard(request):
     logined_user = request.user.username
     total_appointments = Appointment.objects.all().count()
     total_patients = Patient.objects.all().count()
-    scheduled_appointments = Appointment.objects.filter(status='Scheduled')
-    pending_appointments = Appointment.objects.filter(status='Pending')
-    completed_appointments = Appointment.objects.filter(status='Completed')
-    cancelled_appointments = Appointment.objects.filter(status='Cancelled')
+    scheduled_appointments = Appointment.objects.filter(status='Scheduled').order_by('-date_time')[:5]
+    pending_appointments = Appointment.objects.filter(status='Pending') \
+                                              .order_by('-date_time')[:5]
+    completed_appointments = Appointment.objects.filter(status='Completed').order_by('-date_time')[:5]
+    cancelled_appointments = Appointment.objects.filter(status='Cancelled').order_by('-date_time')[:5]
     total_quotations = Quotation.objects.all().count()
     return render(request, 'dashboard.html', {'scheduled_appointments': scheduled_appointments, 'pending_appointments': pending_appointments, 'completed_appointments': completed_appointments, 'cancelled_appointments': cancelled_appointments, 'logined_user': logined_user, 'total_appointments': total_appointments, 'total_patients': total_patients, 'total_appointments': total_appointments
                                               , 'total_quotations': total_quotations})
@@ -216,9 +221,9 @@ def CreatePatient(request):
 
 def AppointmentsPage(request):
     # Retrieve pending appointments
-    pending_appointments = Appointment.objects.filter(status='Pending')
-    scheduled_appointments = Appointment.objects.filter(status='Scheduled')
-    completed_appointments = Appointment.objects.filter(status='Completed')
+    pending_appointments = Appointment.objects.filter(status='Pending').order_by('-date_time')
+    scheduled_appointments = Appointment.objects.filter(status='Scheduled').order_by('-date_time')
+    completed_appointments = Appointment.objects.filter(status='Completed').order_by('-date_time')
     
     # Retrieve dentists with user_type=3
     dentists = Dentist.objects.filter(user__user_type=3)
@@ -700,7 +705,7 @@ def staff_required(view_func):
     return decorated_view
 
 def invoice_list_view(request):
-    invoices = Invoice.objects.all()
+    invoices = Invoice.objects.all().order_by('-id')
     return render(request, 'invoice_list.html', {
         'invoices': invoices
     })
@@ -875,7 +880,7 @@ def patient_invoice(request, patient_id):
 
 
 def create_quotation_list(request):
-    patients = Patient.objects.all()
+    patients = Patient.objects.all().order_by('-id')
     return render(request, 'create_quotation_list.html', {
         'patients': patients
     })
@@ -1721,4 +1726,123 @@ def supplier_delete(request, pk):
         'object': supplier,
         'title': f'Delete {supplier.name}',
         'type': 'supplier'
+    })
+@login_required
+def turn_into_receipt(request, invoice_pk):
+    invoice = get_object_or_404(Invoice, pk=invoice_pk)
+
+    # Check if a receipt already exists for this invoice
+    existing_receipt = Receipt.objects.filter(invoice=invoice).first()
+    if existing_receipt:
+        return render(request, 'receipt_already_exists.html', {
+            'receipt': existing_receipt
+        })
+
+    # Get completed payment
+    payment = invoice.payments.filter(status='completed').first()
+    if not payment:
+        messages.warning(request, "No completed payment found for this invoice.")
+        return redirect('invoice_detail', pk=invoice_pk)
+
+    try:
+        # Create the receipt
+        receipt = Receipt.objects.create(
+            invoice=invoice,
+            payment=payment,
+            patient=invoice.patient
+        )
+
+        # Copy services into receipt items
+        for item in invoice.invoiceservice_set.all():
+            price = item.price_at_time or Decimal('0.00')  # Fallback to 0 if None
+            ReceiptItem.objects.create(
+                receipt=receipt,
+                item=item.service.inventoryitem,  # Make sure this relationship exists
+                quantity=item.quantity,
+                price=price
+            )
+
+        messages.success(request, f"Receipt #{receipt.receipt_number} created successfully.")
+        return redirect('templates:receipt_detail', pk=receipt.pk)
+
+    except IntegrityError as e:
+        error_message = str(e)
+        if 'UNIQUE constraint failed: payments_receipt.payment_id' in error_message:
+            messages.warning(request, "A receipt already exists for this payment.")
+            return redirect('templates:invoice_detail', pk=invoice_pk)
+        elif 'NOT NULL constraint failed: payments_receiptitem.item_id' in error_message:
+            messages.error(request, "Cannot create receipt. One or more items are missing inventory data.")
+            return redirect('templates:invoice_detail', pk=invoice_pk)
+        else:
+            # Re-raise unexpected errors
+            raise
+
+
+def generate_receipt_pdf(request, pk):
+    receipt = get_object_or_404(Receipt, pk=pk)
+    invoice = receipt.invoice  # Get linked invoice
+
+    # Use the invoice for consistent display
+    items = []
+    for item in invoice.invoiceservice_set.all():
+        price = item.price_at_time or Decimal('0.00')
+        total_price = item.quantity * price
+        items.append({
+            'item': item.service if item.service else None,
+            'quantity': item.quantity,
+            'price': price,
+            'total_price': total_price
+        })
+
+    subtotal = invoice.total_amount or Decimal('0.00')
+    tax = Decimal('0.00')  # Or update this if your Invoice includes tax
+    grand_total = subtotal + tax
+
+    html_string = render_to_string('receipts_pdf.html', {
+        'receipt': receipt,
+        'items': items,
+        'subtotal': subtotal,
+        'tax': tax,
+        'grand_total': grand_total
+    })
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=receipt_{receipt.receipt_number}.pdf'
+    HTML(string=html_string).write_pdf(response)
+    return response
+
+
+@login_required
+def receipt_list(request):
+    receipts = Receipt.objects.all().select_related('patient', 'invoice')
+    return render(request, 'receipt_list.html', {'receipts': receipts})
+
+@login_required
+def receipt_detail(request, pk):
+    receipt = get_object_or_404(Receipt, pk=pk)
+    invoice = receipt.invoice  # Get the linked invoice
+
+    # Use the invoice's pre-calculated values
+    subtotal = invoice.total_amount or Decimal('0.00')
+    tax = Decimal('0.00')
+    grand_total = invoice.total_amount or Decimal('0.00')
+
+    # Optionally get the invoice items for display
+    items_with_totals = []
+    for item in invoice.invoiceservice_set.all():
+        price = item.price_at_time or Decimal('0.00')
+        total_price = item.quantity * price
+        items_with_totals.append({
+            'item': item.service if item.service else None,
+            'quantity': item.quantity,
+            'price': price,
+            'total_price': total_price
+        })
+
+    return render(request, 'receipt_detail.html', {
+        'receipt': receipt,
+        'items': items_with_totals,
+        'subtotal': subtotal,
+        'tax': tax,
+        'grand_total': grand_total
     })

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Receipt Already Exists{% endblock %}
+
+{% block content %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    Swal.fire({
+        icon: "warning",
+        title: "Receipt Already Generated",
+        text: "This invoice already has a receipt.",
+        confirmButtonText: "View Receipt"
+    }).then(() => {
+        window.location.href = "{% url 'receipt_detail' receipt.pk %}";
+    });
+});
+</script>
+
+<div class="p-6">
+    <a href="{% url 'receipt_detail' receipt.pk %}" class="text-indigo-600 hover:text-indigo-900">View Receipt</a>
+</div>
+{% endblock %}

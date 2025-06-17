@@ -1,12 +1,13 @@
 from django.urls import path
 from . import views
 
+
 urlpatterns = [
     path('', views.index, name='index'),
     path('app/', views.app_login, name='app'),
     path('login/', views.login_user, name='login'),
     path('logout/', views.logout_view, name='logout'),
-    path('dashboard', views.Dashboard, name='dashboard'),
+    path('dashboard/', views.Dashboard, name='dashboard'),
     path('patients', views.PatientsPage, name='patients'),
     path('create-patient', views.CreatePatient, name='create-patient'),
     path('appointments', views.AppointmentsPage, name='appointments'),
@@ -49,7 +50,6 @@ urlpatterns = [
     path('make_partial_payment/<int:invoice_id>/', views.make_partial_payment, name='make_partial_payment'),
     path('partial_payment', views.partial_payment, name='partial_payment'),
     path('calendar/', views.calendar_view, name='calendar'),
-    path('', views.inventory_dashboard, name='dashboard'),
     path('items/', views.item_list, name='item_list'),
     path('items/<int:pk>/', views.item_detail, name='item_detail'),
     path('items/new/', views.item_create, name='item_create'),
@@ -70,4 +70,9 @@ urlpatterns = [
     path('suppliers/<int:pk>/edit/', views.supplier_update, name='supplier_update'),
     path('suppliers/<int:pk>/delete/', views.supplier_delete, name='supplier_delete'),
     path('items/<int:pk>/transactions/new/', views.transaction_create, name='transaction_create'),
+    # Receipts
+    path('receipts/', views.receipt_list, name='receipt_list'),
+    path('receipts/<int:pk>/', views.receipt_detail, name='receipt_detail'),
+    path('invoices/<int:invoice_pk>/convert/', views.turn_into_receipt, name='turn_into_receipt'),
+    path('receipts/<int:pk>/pdf/', views.generate_receipt_pdf, name='receipt_pdf'),
 ]
